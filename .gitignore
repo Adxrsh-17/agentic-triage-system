@@ -15,11 +15,13 @@ env/
 # Environment secrets
 .env
 
-# Generated artifacts
+# Generated artifacts & scratch
 architecture_diagram.dot
 architecture_diagram.svg
+scratch/
 
 # OS/editor files
 .DS_Store
 Thumbs.db
 .vscode/
+.idea/
