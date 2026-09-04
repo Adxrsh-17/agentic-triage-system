@@ -9,3 +9,5 @@ chromadb
 langchain-chroma
 pinecone
 langchain-pinecone
+sentence-transformers
+requests
