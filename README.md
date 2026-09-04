@@ -86,6 +86,8 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
 
 ## Multi-Agent Architecture & Workflow
 
+![Smart Triage AI Multi-Agent Architecture](assets/architecture_diagram.png)
+
 The system is built on a deterministic LangGraph `StateGraph` pipeline:
 
 ```
@@ -161,8 +163,9 @@ agentic-triage-system/
 │   ├── __init__.py
 │   ├── infermedica_client.py    # Infermedica v3 API client & OTC medication engine
 │   ├── location_tools.py        # Geocoding, Google Places / OSM Overpass & Maps URL builder
-│   ├── multi_agent.py           # LangGraph StateGraph, ESI consensus logic & semantic memory
-│   └── react_agent.py           # Baseline ReAct agent implementation
+│   └── multi_agent.py           # LangGraph StateGraph, ESI consensus logic & semantic memory
+├── assets/                      # Production Architecture Diagrams & Media
+│   └── architecture_diagram.png # System architecture diagram with tech logos
 ├── tests/                       # Formal Automated Test Suite
 │   ├── __init__.py
 │   ├── test_infermedica_integration.py  # Unit & consensus integration tests
@@ -175,7 +178,7 @@ agentic-triage-system/
 ├── app.py                       # Streamlit web application & clinical dashboard
 ├── LICENSE                      # MIT License
 ├── pytest.ini                   # Pytest test runner configuration
-├── README.md                    # Project documentation
+├── README.md                    # Production documentation
 ├── requirements.txt             # Production dependencies
 └── sitecustomize.py             # Runtime encoding configuration
 ```

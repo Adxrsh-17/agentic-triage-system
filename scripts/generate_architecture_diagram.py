@@ -154,7 +154,8 @@ def build_dot(analysis: ProjectAnalysis) -> str:
 
     # Core file nodes.
     app_file = node_id("file", "app.py")
-    react_file = node_id("file", "agent_react_agent_py")
+    infer_file = node_id("file", "agent_infermedica_client_py")
+    loc_file = node_id("file", "agent_location_tools_py")
     multi_file = node_id("file", "agent_multi_agent_py")
     init_file = node_id("file", "agent_init_py")
     site_file = node_id("file", "sitecustomize_py")
@@ -168,10 +169,11 @@ def build_dot(analysis: ProjectAnalysis) -> str:
             "        label=\"Source Files\";",
             "        color=\"#e2e8f0\";",
             "        style=\"rounded\";",
-            f"        {app_file} [label=\"app.py\\nStreamlit UI + backend router\", fillcolor=\"#dbeafe\", color=\"#3b82f6\"];",
+            f"        {app_file} [label=\"app.py\\nStreamlit UI + Dashboard\", fillcolor=\"#dbeafe\", color=\"#3b82f6\"];",
             f"        {init_file} [label=\"agent/__init__.py\\npackage export\", fillcolor=\"#f1f5f9\", color=\"#64748b\"];",
             f"        {multi_file} [label=\"agent/multi_agent.py\\nStateGraph orchestration\", fillcolor=\"#ecfccb\", color=\"#84cc16\"];",
-            f"        {react_file} [label=\"agent/react_agent.py\\nGroq ReAct agent\", fillcolor=\"#fce7f3\", color=\"#ec4899\"];",
+            f"        {infer_file} [label=\"agent/infermedica_client.py\\nInfermedica v3 + OTC Meds\", fillcolor=\"#e0f2fe\", color=\"#0284c7\"];",
+            f"        {loc_file} [label=\"agent/location_tools.py\\nGeocoding & Maps routing\", fillcolor=\"#fef3c7\", color=\"#f59e0b\"];",
             f"        {site_file} [label=\"sitecustomize.py\\nPython path bootstrap\", fillcolor=\"#f8fafc\", color=\"#94a3b8\"];",
             f"        {env_file} [label=\".env / .env.example\\nruntime configuration\", shape=note, fillcolor=\"#fff7ed\", color=\"#f59e0b\"];",
             f"        {req_file} [label=\"requirements.txt\\ndependencies\", shape=note, fillcolor=\"#f8fafc\", color=\"#94a3b8\"];",
@@ -183,11 +185,11 @@ def build_dot(analysis: ProjectAnalysis) -> str:
 
     user = node_id("actor", "user")
     streamlit = node_id("component", "streamlit_ui")
-    backend_router = node_id("component", "backend_router")
-    groq_agent = node_id("component", "groq_react")
+    infermedica_engine = node_id("component", "infermedica_engine")
     local_graph = node_id("component", "local_graph")
     groq_api = node_id("service", "groq_api")
     pinecone = node_id("service", "pinecone")
+    location_api = node_id("service", "location_service")
     local_store = node_id("service", "local_patient_store")
     review_ui = node_id("component", "review_ui")
 
@@ -197,15 +199,15 @@ def build_dot(analysis: ProjectAnalysis) -> str:
             "        label=\"Runtime Architecture\";",
             "        color=\"#cbd5e1\";",
             "        style=\"rounded\";",
-            f"        {user} [label=\"User\\nSymptoms input\", shape=ellipse, fillcolor=\"#e0f2fe\", color=\"#0284c7\"];",
-            f"        {streamlit} [label=\"Streamlit app\\napp.py\", fillcolor=\"#dbeafe\", color=\"#3b82f6\"];",
-            f"        {backend_router} [label=\"Backend router\\nselects Groq or local graph\", fillcolor=\"#eff6ff\", color=\"#2563eb\"];",
-            f"        {groq_agent} [label=\"Groq ReAct backend\\nagent/react_agent.py\", fillcolor=\"#fce7f3\", color=\"#ec4899\"];",
-            f"        {local_graph} [label=\"Deterministic triage graph\\nagent/multi_agent.py\", fillcolor=\"#ecfccb\", color=\"#84cc16\"];",
-            f"        {review_ui} [label=\"Human review UI\\napprove / reject high-risk cases\", fillcolor=\"#fff7ed\", color=\"#f59e0b\"];",
-            f"        {groq_api} [label=\"Groq API\\nChatGroq / LLM\", shape=component, fillcolor=\"#fce7f3\", color=\"#ec4899\"];",
-            f"        {pinecone} [label=\"Pinecone\\npatient memory index\", shape=component, fillcolor=\"#dcfce7\", color=\"#22c55e\"];",
-            f"        {local_store} [label=\"Local patient store\\nfallback memory\", shape=component, fillcolor=\"#f8fafc\", color=\"#94a3b8\"];",
+            f"        {user} [label=\"Intake Staff\\nPatient complaint\", shape=ellipse, fillcolor=\"#e0f2fe\", color=\"#0284c7\"];",
+            f"        {streamlit} [label=\"Streamlit Clinical App\\napp.py\", fillcolor=\"#dbeafe\", color=\"#3b82f6\"];",
+            f"        {infermedica_engine} [label=\"Infermedica Clinical v3\\nagent/infermedica_client.py\", fillcolor=\"#e0f2fe\", color=\"#0284c7\"];",
+            f"        {local_graph} [label=\"LangGraph StateGraph\\nagent/multi_agent.py\", fillcolor=\"#ecfccb\", color=\"#84cc16\"];",
+            f"        {review_ui} [label=\"Human Review Node (HITL)\\napprove / reject emergent cases\", fillcolor=\"#fff7ed\", color=\"#f59e0b\"];",
+            f"        {groq_api} [label=\"Groq API\\nTool-Calling Fallback\", shape=component, fillcolor=\"#fce7f3\", color=\"#ec4899\"];",
+            f"        {pinecone} [label=\"Pinecone 384-dim\\nall-MiniLM-L6-v2 embeddings\", shape=component, fillcolor=\"#dcfce7\", color=\"#22c55e\"];",
+            f"        {location_api} [label=\"Maps & OpenStreetMap\\nagent/location_tools.py\", shape=component, fillcolor=\"#fef3c7\", color=\"#f59e0b\"];",
+            f"        {local_store} [label=\"Local Patient Store\\nfallback memory\", shape=component, fillcolor=\"#f8fafc\", color=\"#94a3b8\"];",
             "    }",
             "",
         ]
@@ -289,7 +291,7 @@ def build_dot(analysis: ProjectAnalysis) -> str:
             f"    {retrieve_memory} -> {pinecone} [label=\"optional\", color=\"#22c55e\"];",
             f"    {retrieve_memory} -> {local_store} [label=\"fallback\", color=\"#94a3b8\"];",
             f"    {env_file} -> {app_file} [style=dotted, label=\"config\", color=\"#f59e0b\"];",
-            f"    {env_file} -> {react_file} [style=dotted, label=\"api key\", color=\"#f59e0b\"];",
+            f"    {env_file} -> {infer_file} [style=dotted, label=\"api key\", color=\"#f59e0b\"];",
             f"    {env_file} -> {multi_file} [style=dotted, label=\"memory config\", color=\"#f59e0b\"];",
             f"    {req_file} -> {app_file} [style=dotted, label=\"dependencies\", color=\"#94a3b8\"];",
             f"    {readme_file} -> {inventory} [style=dotted, label=\"docs\", color=\"#94a3b8\"];",
@@ -301,8 +303,9 @@ def build_dot(analysis: ProjectAnalysis) -> str:
     app_module = module_name(ROOT, ROOT / "app.py")
     for source_module, imported_modules in analysis.import_edges.items():
         for imported_module in imported_modules:
-            if source_module == app_module and imported_module in {"agent.multi_agent", "agent.react_agent"}:
-                lines.append(f"    {app_file} -> {multi_file if imported_module == 'agent.multi_agent' else react_file} [style=bold, color=\"#1d4ed8\", label=\"imports\"];")
+            if source_module == app_module and imported_module in {"agent.multi_agent", "agent.infermedica_client", "agent.location_tools"}:
+                target_file = multi_file if "multi_agent" in imported_module else (infer_file if "infermedica" in imported_module else loc_file)
+                lines.append(f"    {app_file} -> {target_file} [style=bold, color=\"#1d4ed8\", label=\"imports\"];")
             elif source_module == "agent" and imported_module == "agent.multi_agent":
                 lines.append(f"    {init_file} -> {multi_file} [style=bold, color=\"#64748b\", label=\"exports\"];")
 
