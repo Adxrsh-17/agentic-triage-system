@@ -366,18 +366,8 @@ Actual ESI 5          0                 0                 5                 1   
 
 ---
 
-## 💼 Resume-Ready Project Highlights
 
-Use these formatted impact statements for your resume, portfolio, or LinkedIn:
 
-```markdown
-• Smart Triage AI — Multi-Agent Clinical Intake Copilot (LangGraph, Python, Infermedica, Groq, Pinecone)
-  - Engineered an ESI-aligned multi-agent triage copilot using LangGraph to automate clinical intake and patient acuity scoring, achieving 100% emergency sensitivity (ESI 1-2) and 80.0% within-±1 acuity accuracy across 25 validated clinical vignettes.
-  - Architected a 3-tier resilient intake pipeline integrating Infermedica v3 API, Groq LLaMA 3.3 tool-calling, and deterministic regex fallbacks, ensuring zero-downtime offline execution.
-  - Implemented an 'Escalate, Never Downgrade' dual-engine consensus arbitration protocol with Human-in-the-Loop (HITL) clinical sign-off gates for high-risk emergent presentations.
-  - Built an evidence-based OTC medication engine with comorbidity contraindication filtering (liver dose caps, NSAID ulcer/renal exclusions, hypertension alerts) and real-time live GPS hospital routing.
-  - Integrated 384-dimensional dense semantic patient memory using SentenceTransformers (all-MiniLM-L6-v2) and Pinecone vector storage for cross-visit clinical context retrieval.
-```
 
 
 ## Limitations & Future Roadmap
