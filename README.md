@@ -69,10 +69,17 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
   - **Hypertension:** Explicitly cautions against oral sympathomimetic decongestants (pseudoephedrine/phenylephrine).
   - **Acute Emergencies (ESI 1–2):** Strictly enforces protocols **against unguided oral self-medication** while providing EMS-directed chewable Aspirin protocols for acute coronary events.
 
-### 📍 Live GPS Navigation & Facility Discovery
-- **Dynamic Resource Matching:** Queries relevant acute care hospitals for high-risk patients and neighborhood retail pharmacies for low/medium-risk outpatient management.
-- **Dual Geolocation Engine:** Uses Google Places API when configured; seamlessly falls back to OpenStreetMap Nominatim and Overpass POI queries with zero API keys required.
-- **Real-Time GPS Origin:** Generates direct Google Maps URLs (`https://www.google.com/maps/dir/?api=1&destination=lat,lng&travelmode=driving`) that dynamically resolve the patient's real-time device GPS sensor as the route origin.
+### 🏪 1-Click Emergency Dispatch & Resource Pre-Allocation
+- **Smart Hospital Recommendations Engine:** Dynamically ranks nearby emergency departments using a multi-factor score:
+  $$\text{Match Score} = f(\text{Distance}, \text{Specialty Match}, \text{Available ER Bays}, \text{Transit ETA})$$
+- **1-Click Emergency Pre-Admission Dispatch:** Patients or paramedics can reserve an emergency bay and initiate transit with a single tap, generating a unique **Dispatch Ticket ID** (`DISP-XXXX`).
+- **Real-Time Automated Resource Allocation:** The hospital pre-allocates the exact designated bed (e.g. *Resuscitation Bay 1*, *Trauma Suite*), assigns the attending physician and triage RN, and pre-stages emergency equipment (e.g. *Defibrillator + 12-Lead ECG, Ventilator, IV Infuser*) before the patient arrives.
+- **5-Stage Live Emergency Tracker:** Real-time visual progress stepper:
+  `1. Triage Assessed` ➔ `2. Hospital Alerted & Bay Reserved` ➔ `3. Care Team Mobilized` ➔ `4. Patient En Route (Live Navigation)` ➔ `5. Patient Arrived & Bed Handover`.
+
+### 🏥 Dual-Portal Ecosystem: Patient Triage & Hospital Command Cockpit
+- **Patient Portal:** Conversational symptom intake, ESI acuity badges, Infermedica validation, nearby hospital cards, and live transit tracker.
+- **Hospital Emergency Command Center (Live POS/Kitchen Display):** Real-time incoming emergency dispatch queue with audible/visual alert chimes, live ER/ICU capacity telemetry, bay occupancy matrix, and 1-click staff actions (`Mobilize Team`, `Confirm Arrival & Handover`).
 
 ### 🧠 Semantic Patient Memory
 - Employs `sentence-transformers` (`all-MiniLM-L6-v2`) to produce 384-dimensional dense semantic vectors.
@@ -112,7 +119,8 @@ The system is built on a deterministic LangGraph `StateGraph` pipeline:
                                    │                         │
                                    ▼                         │
                       ┌─────────────────────────┐            │
-                      │ Location Resources Node ├────────────┘
+                      │ Smart Hospital Matcher  ├────────────┘
+                      │ & Dispatch Hub Node     │
                       └────────────┬────────────┘
                                    │
                      ┌─────────────┴─────────────┐
@@ -137,7 +145,7 @@ The system is built on a deterministic LangGraph `StateGraph` pipeline:
 | **`intake`** | Structured Intake Agent | Ingests free-text complaints, queries Infermedica/Groq LLM/Regex, extracts symptoms and pertinent negatives, and formats clinical evidence. |
 | **`risk`** | Risk & ESI Assessment Node | Performs dual-engine consensus scoring (ESI 1–5), queries Infermedica `/v3/triage`, generates comorbidity-adjusted OTC medication guidance, and flags emergency escalation. |
 | **`safety`** | Safety & Compliance Node | Verifies medical non-diagnostic language, enforces safety disclaimers, eliminates certainty claims, and formats clinical response markdown. |
-| **`resources`** | Location Resource Agent | Detects patient coordinates, filters relevant medical facilities (general hospitals or pharmacies), calculates haversine distances, and builds direct Google Maps navigation links. |
+| **`resources`** | Smart Hospital Matcher & Hub | Detects patient coordinates, filters relevant emergency medical centers, calculates transit ETA & match scores, and prepares 1-click pre-admission dispatch options. |
 | **`human_review`**| Clinical Review (HITL) | Suspends graph execution on high-risk cases awaiting attending clinician sign-off, sign-out notes, or direct escalation. |
 | **`finish`** | Workflow Finalizer | Compiles final triage state, updates semantic patient history, and delivers output to the clinical interface. |
 
@@ -149,7 +157,7 @@ The system is built on a deterministic LangGraph `StateGraph` pipeline:
 - **Clinical Engine:** [Infermedica API v3](https://developer.infermedica.com/) (`/v3/parse`, `/v3/diagnosis`, `/v3/triage`)
 - **LLM Inference:** [Groq Cloud](https://groq.com/) (`llama-3.3-70b-versatile`, `openai/gpt-oss-120b`)
 - **Vector Memory & Embeddings:** [Pinecone](https://www.pinecone.io/), [Sentence-Transformers](https://sbert.net/) (`all-MiniLM-L6-v2`, 384 dimensions)
-- **Frontend & Visualization:** [Streamlit](https://streamlit.io/) with custom responsive CSS glassmorphism
+- **Frontend & Visualization:** [Streamlit](https://streamlit.io/) with dual-portal responsive CSS glassmorphism (Patient App + Hospital Command Center)
 - **Geocoding & Navigation:** Google Geocoding & Places APIs, OpenStreetMap (Nominatim & Overpass API)
 - **Validation & Schemas:** [Pydantic v2](https://docs.pydantic.dev/)
 
@@ -159,8 +167,9 @@ The system is built on a deterministic LangGraph `StateGraph` pipeline:
 
 ```
 agentic-triage-system/
-├── agent/                       # Core Multi-Agent Triage Package
+├── agent/                       # Core Multi-Agent Triage & Dispatch Package
 │   ├── __init__.py
+│   ├── dispatch_hub.py          # Central Dispatch Hub & Hospital Resource Allocation Engine
 │   ├── infermedica_client.py    # Infermedica v3 API client & OTC medication engine
 │   ├── location_tools.py        # Geocoding, Google Places / OSM Overpass & Maps URL builder
 │   └── multi_agent.py           # LangGraph StateGraph, ESI consensus logic & semantic memory
@@ -171,15 +180,16 @@ agentic-triage-system/
 │   └── evaluation_results.json  # Machine-readable evaluation metrics
 ├── tests/                       # Formal Automated Test Suite
 │   ├── __init__.py
+│   ├── test_dispatch_hub.py             # Dispatch lifecycle & automated resource tests
 │   ├── test_infermedica_integration.py  # Unit & consensus integration tests
 │   ├── test_location_tools.py           # Geocoding, POI filters & navigation tests
 │   └── test_multi_agent.py              # End-to-end multi-agent triage tests
 ├── scripts/                     # Operational & Evaluation Utilities
 │   ├── evaluate_system.py               # 25-vignette clinical benchmark runner
-│   └── generate_architecture_diagram.py # Graphviz architecture generator
+│   └── generate_architecture_diagram.py # Architecture diagram generator
 ├── .env.example                 # Environment configuration template
 ├── .gitignore                   # Production git exclusion rules
-├── app.py                       # Streamlit web application & clinical dashboard
+├── app.py                       # Streamlit web application & dual-portal cockpit
 ├── LICENSE                      # MIT License
 ├── pytest.ini                   # Pytest test runner configuration
 ├── README.md                    # Production documentation

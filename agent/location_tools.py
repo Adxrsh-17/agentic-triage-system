@@ -491,3 +491,83 @@ def build_directions_url(
     """
     dest_str = f"{dest_lat:.6f},{dest_lng:.6f}"
     return f"https://www.google.com/maps/dir/?api=1&destination={dest_str}&travelmode=driving"
+
+
+def calculate_transit_eta(distance_km: float, speed_kmh: float = 28.0) -> int:
+    """
+    Calculate estimated emergency transit time in minutes given distance in kilometers.
+    Assumes realistic urban traffic speed with emergency priority transit buffer.
+    """
+    if distance_km <= 0:
+        return 2
+    raw_mins = (distance_km / max(10.0, speed_kmh)) * 60.0
+    return max(2, int(round(raw_mins + 2.0)))
+
+
+def rank_hospitals_for_triage(
+    facilities: List[Dict[str, Any]],
+    esi_level: int = 3,
+    symptoms: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Ranks nearby hospitals using a multi-factor smart recommendation algorithm
+    combining proximity, clinical specialty match, live bay availability, and ETA.
+    """
+    symptoms = symptoms or []
+    symptom_str = " ".join(symptoms).lower()
+    is_cardiac = any(w in symptom_str for w in ["chest pain", "heart", "radiat", "cardiac", "palpitation"])
+    is_trauma = any(w in symptom_str for w in ["bleed", "fall", "fracture", "accident", "wound", "trauma", "crash", "burn"])
+    is_neuro = any(w in symptom_str for w in ["stroke", "slur", "droop", "confus", "faint", "seiz", "paralys", "weakness"])
+
+    ranked: List[Dict[str, Any]] = []
+    for fac in facilities:
+        item = dict(fac)
+        dist = item.get("distance_km", 1.0)
+        item["estimated_transit_mins"] = calculate_transit_eta(dist)
+
+        # Baseline score (100 - proximity penalty)
+        score = 98.0 - min(40.0, dist * 3.5)
+
+        caps = [c.lower() for c in item.get("capabilities", [])]
+        trauma_lvl = item.get("trauma_level", "").lower()
+
+        # ESI 1 or 2 Emergent Acuity matching
+        if esi_level in (1, 2):
+            if "level 1" in trauma_lvl or "level-1" in trauma_lvl:
+                score += 12.0
+            if is_cardiac and any("cath lab" in c or "cardiac" in c for c in caps):
+                score += 15.0
+                item["specialty_badge"] = "❤️ Top Cardiac Emergency Match"
+            elif is_trauma and any("trauma" in c or "surgery" in c for c in caps):
+                score += 15.0
+                item["specialty_badge"] = "🩹 Level-1 Trauma Certified"
+            elif is_neuro and any("stroke" in c or "ct" in c for c in caps):
+                score += 15.0
+                item["specialty_badge"] = "🧠 Code Stroke Ready"
+            else:
+                item["specialty_badge"] = "🚨 24/7 Comprehensive ER"
+        elif esi_level == 3:
+            if item.get("available_er_bays", 0) >= 3:
+                score += 8.0
+            item["specialty_badge"] = "⚡ Rapid Acute Care"
+        else:
+            item["specialty_badge"] = "🟢 Low Wait Outpatient Bay"
+
+        # Bay availability bonus
+        avail_bays = item.get("available_er_bays", 3)
+        if avail_bays >= 5:
+            score += 6.0
+        elif avail_bays <= 1:
+            score -= 10.0
+
+        # Wait time penalty
+        wait = item.get("average_wait_mins", 10)
+        score -= min(15.0, wait * 0.5)
+
+        item["match_score"] = min(99, max(55, int(round(score))))
+        ranked.append(item)
+
+    # Sort primarily by match score (highest first), then by distance (closest first)
+    ranked.sort(key=lambda x: (-x.get("match_score", 0), x.get("distance_km", 999)))
+    return ranked
+
