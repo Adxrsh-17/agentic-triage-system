@@ -374,21 +374,7 @@ Actual ESI 5          0                 0                 5                 1   
 ```
 > **Clinical Safety Note:** All 8 critical emergent cases (ESI 1 & 2: acute stroke, myocardial infarction, anaphylaxis, severe hemorrhage, respiratory failure) were identified as high-risk with **100% emergency recall** and zero under-triaged critical emergencies.
 
----
 
-## Resume-Ready Project Highlights
-
-Use these formatted impact statements for your resume, portfolio, or LinkedIn:
-
-```markdown
-• Smart Triage AI — Multi-Agent Clinical Intake & Emergency Dispatch Copilot (LangGraph, Python, Infermedica, Groq, Pinecone)
-  - Engineered an ESI-aligned multi-agent clinical copilot using LangGraph and Python to automate emergency triage intake and patient acuity scoring, achieving 100% emergency sensitivity (ESI 1-2) and 80.0% within-±1 acuity accuracy across 25 validated clinical vignettes.
-  - Architected a 3-tier resilient intake pipeline integrating Infermedica v3 certified medical API, Groq Cloud LLaMA-3-70B tool-calling, and deterministic regex fallbacks, ensuring zero-downtime offline execution.
-  - Implemented an 'Escalate, Never Downgrade' dual-engine consensus arbitration protocol with Human-in-the-Loop (HITL) clinical sign-off gates for high-risk emergent presentations.
-  - Built a 5-stage Emergency Dispatch & Hospital Resource Pre-Allocation Engine that automatically reserves ER trauma/resuscitation bays, assigns attending emergency physicians and trauma RNs, and stages critical medical hardware (crash cart, defibrillator, ventilator) prior to patient arrival.
-  - Developed an evidence-based OTC medication engine with comorbidity contraindication filtering (liver dose caps, NSAID ulcer/renal exclusions, hypertension alerts) and real-time live GPS hospital routing with transit ETA estimation.
-  - Integrated 384-dimensional dense semantic patient memory using SentenceTransformers (all-MiniLM-L6-v2) and Pinecone vector storage for cross-visit clinical context retrieval.
-```
 
 
 ## Limitations & Future Roadmap
