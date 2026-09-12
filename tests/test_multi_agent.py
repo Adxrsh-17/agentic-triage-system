@@ -52,6 +52,28 @@ class TestMultiAgentSystem(unittest.TestCase):
         self.assertTrue(res["awaiting_human_review"])
         self.assertIsNotNone(res["pending_state"])
 
+    def test_hospital_recommendations_flow(self):
+        """Verify that location coordinates generate ranked hospital recommendations."""
+        agent = get_multi_agent()
+        res = agent.process(
+            user_input="Severe abdominal pain and fever for 2 days",
+            user_id="test_pt_rec",
+            age=35,
+            sex="female",
+            conditions=[],
+            location_lat=11.0168,
+            location_lng=76.9558,
+        )
+        self.assertIsNotNone(res)
+        self.assertIn("hospital_recommendations", res)
+        # Should contain discovered or registered emergency facilities
+        self.assertGreaterEqual(len(res["hospital_recommendations"]), 1)
+        top_hosp = res["hospital_recommendations"][0]
+        self.assertIn("distance_km", top_hosp)
+        self.assertIn("estimated_transit_mins", top_hosp)
+        self.assertIn("match_score", top_hosp)
+
 
 if __name__ == "__main__":
     unittest.main()
+

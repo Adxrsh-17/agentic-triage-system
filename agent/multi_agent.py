@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+from agent.dispatch_hub import get_dispatch_hub
 from agent.infermedica_client import (
     get_diagnosis as get_diagnosis_infermedica,
     get_medication_guidance,
@@ -19,9 +20,11 @@ from agent.infermedica_client import (
 )
 from agent.location_tools import (
     build_directions_url,
+    calculate_transit_eta,
     find_nearby_places,
     geocode_address,
     get_current_location,
+    rank_hospitals_for_triage,
 )
 
 try:
@@ -105,6 +108,7 @@ class AgentState(TypedDict, total=False):
     location_lat: Optional[float]
     location_lng: Optional[float]
     nearby_facilities: List[Dict[str, Any]]
+    hospital_recommendations: List[Dict[str, Any]]
     symptoms: List[str]
     duration_days: int
     severity: str
@@ -1330,8 +1334,9 @@ def safety_node(state: AgentState) -> AgentState:
 
 def resources_node(state: AgentState) -> AgentState:
     """
-    Location-based resource node: queries real nearby facilities (hospitals/pharmacies)
-    matching patient risk level and builds direct Google Maps navigation links.
+    Location-based resource node: queries real nearby facilities (hospitals/pharmacies),
+    enriches them with live DispatchHub capacity telemetry, and ranks them using
+    multi-factor clinical proximity + capability matching.
     """
     updated = dict(state)
     lat = updated.get("location_lat")
@@ -1356,38 +1361,58 @@ def resources_node(state: AgentState) -> AgentState:
                 address = curr_loc["address"]
 
     facilities: List[Dict[str, Any]] = []
+    hospital_recommendations: List[Dict[str, Any]] = []
     queried_types: List[str] = []
 
     if lat is not None and lng is not None:
         assessment = updated.get("risk_assessment", {})
         risk_level = assessment.get("risk_level", "LOW")
+        esi_level = assessment.get("esi_level", 5)
         is_emergency = assessment.get("is_emergency", False)
 
-        if risk_level == "HIGH" or is_emergency:
-            facilities = find_nearby_places(lat, lng, place_type="hospital", radius_m=10000)
+        if risk_level == "HIGH" or is_emergency or esi_level in (1, 2):
+            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=12000)
             queried_types = ["hospital"]
-        elif risk_level == "MEDIUM":
-            hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=8000)
-            pharmacies = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
-            facilities = hospitals[:3] + pharmacies[:2]
+            # Ingest & enrich discovered places into DispatchHub
+            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
+            hospital_recommendations = rank_hospitals_for_triage(
+                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
+            )
+            facilities = hospital_recommendations
+        elif risk_level == "MEDIUM" or esi_level in (3, 4):
+            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=8000)
+            raw_pharmacies = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
+            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
+            hospital_recommendations = rank_hospitals_for_triage(
+                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
+            )
+            for pharm in raw_pharmacies:
+                if "lat" in pharm and "lng" in pharm:
+                    pharm["directions_url"] = build_directions_url(lat, lng, pharm["lat"], pharm["lng"], dest_name=pharm.get("name"))
+            facilities = hospital_recommendations[:3] + raw_pharmacies[:2]
             queried_types = ["hospital", "pharmacy"]
         else:
-            facilities = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
-            queried_types = ["pharmacy"]
-
-        # Build directions links (dynamically routing from user's live device location)
-        for fac in facilities:
-            if "lat" in fac and "lng" in fac:
-                fac["directions_url"] = build_directions_url(lat, lng, fac["lat"], fac["lng"], dest_name=fac.get("name"))
+            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=6000)
+            raw_pharmacies = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
+            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
+            hospital_recommendations = rank_hospitals_for_triage(
+                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
+            )
+            for pharm in raw_pharmacies:
+                if "lat" in pharm and "lng" in pharm:
+                    pharm["directions_url"] = build_directions_url(lat, lng, pharm["lat"], pharm["lng"], dest_name=pharm.get("name"))
+            facilities = hospital_recommendations[:2] + raw_pharmacies[:3]
+            queried_types = ["hospital", "pharmacy"]
 
         loc_label = address or f"{lat:.4f}, {lng:.4f}"
-        summary = f"Located {len(facilities)} nearby facility/facilities ({', '.join(queried_types)}) near {loc_label}"
-        tools_called = ["find_nearby_places", "build_directions_url"]
+        summary = f"Located and ranked {len(hospital_recommendations)} emergency hospital(s) near {loc_label}"
+        tools_called = ["find_nearby_places", "DispatchHub.ingest", "rank_hospitals_for_triage", "build_directions_url"]
     else:
         summary = "Patient location not specified; skipped nearby facility search"
         tools_called = []
 
     updated["nearby_facilities"] = facilities
+    updated["hospital_recommendations"] = hospital_recommendations
 
     # Re-finalize response to include the newly discovered facilities and medications
     assessment = updated.get("risk_assessment", {})
@@ -1586,6 +1611,7 @@ class MultiAgentSystem:
             "intake_method": final_state.get("intake_method", "regex_fallback"),
             "followup_questions": final_state.get("followup_questions", []),
             "nearby_facilities": final_state.get("nearby_facilities", []),
+            "hospital_recommendations": final_state.get("hospital_recommendations", []),
             "location_address": final_state.get("location_address"),
             "location_lat": final_state.get("location_lat"),
             "location_lng": final_state.get("location_lng"),
