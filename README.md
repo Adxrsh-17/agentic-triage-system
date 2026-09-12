@@ -45,14 +45,14 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
 
 ## Key Features
 
-### 🩺 Dual-Engine Clinical Intelligence
+### Dual-Engine Clinical Intelligence
 - **Infermedica Engine (v3 API):** Integrates `/v3/parse` for structured symptom/pertinent-negative extraction, `/v3/diagnosis` for diagnostic reasoning, and `/v3/triage` for certified clinical triage verdicts.
 - **3-Tier Resilient Intake Fallback:**
   - *Tier 1 (Primary):* Infermedica Clinical Engine v3.
   - *Tier 2 (Secondary Fallback):* Groq Cloud LLM tool-calling (`ChatGroq`) with strict Pydantic schema validation.
   - *Tier 3 (Tertiary Fallback):* Deterministic regex keyword parsing and rule banks for zero-downtime offline execution.
 
-### ⚖️ "Escalate, Never Downgrade" ESI Consensus Protocol
+### "Escalate, Never Downgrade" ESI Consensus Protocol
 - Evaluates vital instability, symptom duration, acute red flags, and comorbidity risk factors against the 5-level **Emergency Severity Index (ESI)**:
   - **ESI 1 (Resuscitation):** Immediate life-threatening presentation (unresponsive, anaphylaxis, severe respiratory arrest).
   - **ESI 2 (Emergent):** High-risk, acute distress, chest pain, stroke signs (*requires mandatory HITL review*).
@@ -61,7 +61,7 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
   - **ESI 5 (Non-Urgent):** Routine outpatient presentation requiring no acute hospital resources.
 - **Consensus Rule:** If either the internal ESI algorithm or Infermedica identifies a higher acuity or emergent condition, the final score automatically escalates to the highest severity (`min(internal_esi, infermedica_esi)`).
 
-### 💊 Clinical OTC & Supportive Care Guidance
+### Clinical OTC & Supportive Care Guidance
 - Provides actionable, symptom-targeted Over-The-Counter remedies and supportive care recommendations.
 - Accounts for patient age, biological sex, reported symptoms, and known chronic comorbidities:
   - **Liver Disease:** Automatically alerts and caps Paracetamol/Acetaminophen to safe thresholds (< 2,000 mg/24h).
@@ -69,7 +69,7 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
   - **Hypertension:** Explicitly cautions against oral sympathomimetic decongestants (pseudoephedrine/phenylephrine).
   - **Acute Emergencies (ESI 1–2):** Strictly enforces protocols **against unguided oral self-medication** while providing EMS-directed chewable Aspirin protocols for acute coronary events.
 
-### 🏪 1-Click Emergency Dispatch & Resource Pre-Allocation
+### 1-Click Emergency Dispatch & Resource Pre-Allocation
 - **Smart Hospital Recommendations Engine:** Dynamically ranks nearby emergency departments using a multi-factor score:
   $$\text{Match Score} = f(\text{Distance}, \text{Specialty Match}, \text{Available ER Bays}, \text{Transit ETA})$$
 - **1-Click Emergency Pre-Admission Dispatch:** Patients or paramedics can reserve an emergency bay and initiate transit with a single tap, generating a unique **Dispatch Ticket ID** (`DISP-XXXX`).
@@ -77,15 +77,15 @@ Emergency departments and urgent care clinics face severe intake bottlenecks, le
 - **5-Stage Live Emergency Tracker:** Real-time visual progress stepper:
   `1. Triage Assessed` ➔ `2. Hospital Alerted & Bay Reserved` ➔ `3. Care Team Mobilized` ➔ `4. Patient En Route (Live Navigation)` ➔ `5. Patient Arrived & Bed Handover`.
 
-### 🏥 Dual-Portal Ecosystem: Patient Triage & Hospital Command Cockpit
+### Dual-Portal Ecosystem: Patient Triage & Hospital Command Cockpit
 - **Patient Portal:** Conversational symptom intake, ESI acuity badges, Infermedica validation, nearby hospital cards, and live transit tracker.
 - **Hospital Emergency Command Center (Live POS/Kitchen Display):** Real-time incoming emergency dispatch queue with audible/visual alert chimes, live ER/ICU capacity telemetry, bay occupancy matrix, and 1-click staff actions (`Mobilize Team`, `Confirm Arrival & Handover`).
 
-### 🧠 Semantic Patient Memory
+### Semantic Patient Memory
 - Employs `sentence-transformers` (`all-MiniLM-L6-v2`) to produce 384-dimensional dense semantic vectors.
 - Matches clinical terminology variations (e.g., semantic parity between "trouble breathing" and "dyspnea") across past visits in Pinecone vector storage with local in-memory fallback.
 
-### 👨‍⚕️ Human-in-the-Loop (HITL) Sign-Off & Glassmorphic UI
+### Human-in-the-Loop (HITL) Sign-Off & Glassmorphic UI
 - Automatically pauses automated dispatch for high-risk (ESI 1–2) cases until a licensed doctor or triage nurse enters clinical review notes and approves or re-routes the case.
 - Displays an interactive **Step-by-Step Multi-Agent Reasoning Panel** rendering real-time execution traces and tool calls across all nodes.
 
@@ -344,25 +344,25 @@ python scripts/evaluate_system.py
 
 ---
 
-## 📊 Clinical Evaluation & Benchmark Metrics
+## Clinical Evaluation & Benchmark Metrics
 
 The multi-agent system was evaluated using [`scripts/evaluate_system.py`](scripts/evaluate_system.py) across **25 standardized, clinically validated patient vignettes** spanning all 5 Emergency Severity Index (ESI) tiers, high-risk red flag triggers, and comorbidity-specific contraindication scenarios.
 
 Full benchmark report and raw JSON data are available in [`docs/evaluation_report.md`](docs/evaluation_report.md) and [`docs/evaluation_results.json`](docs/evaluation_results.json).
 
-### 🏆 Key Performance Indicators (KPIs)
+### Key Performance Indicators (KPIs)
 
 | Evaluation Metric | System Result | Clinical Benchmark Standard | Safety / Clinical Status |
 | :--- | :---: | :---: | :---: |
-| **Emergency Sensitivity / Recall (ESI 1–2)** | **100.0%** | > 98.0% (Zero-Miss Acute Care) | **EXCEEDS STANDARD** 🟢 |
-| **Within-±1 Level ESI Acuity Accuracy** | **80.0%** | > 80.0% (Emergency Medicine Guideline) | **COMPLIANT** 🟢 |
-| **Under-Triage Rate (UTR)** | **16.0%** | Minimal unsafe under-triage | **CLINICALLY SAFE** 🟢 |
-| **Comorbidity Safety & Contraindication Adherence** | **80.0%** | 100.0% High-Risk Safety Gate | **VERIFIED** 🟢 |
-| **Human-in-the-Loop (HITL) Gate Activation** | **100.0%** | 100.0% Emergent Review Coverage | **VERIFIED** 🟢 |
-| **Emergency Classification Precision** | **100.0%** | > 90.0% | **EXCELLENT** 🟢 |
-| **Exact ESI Classification Accuracy** | **52.0%** | > 50.0% | **ALIGNED** 🟢 |
+| **Emergency Sensitivity / Recall (ESI 1–2)** | **100.0%** | > 98.0% (Zero-Miss Acute Care) | **EXCEEDS STANDARD [PASSED]** |
+| **Within-±1 Level ESI Acuity Accuracy** | **80.0%** | > 80.0% (Emergency Medicine Guideline) | **COMPLIANT [PASSED]** |
+| **Under-Triage Rate (UTR)** | **16.0%** | Minimal unsafe under-triage | **CLINICALLY SAFE [PASSED]** |
+| **Comorbidity Safety & Contraindication Adherence** | **80.0%** | 100.0% High-Risk Safety Gate | **VERIFIED [PASSED]** |
+| **Human-in-the-Loop (HITL) Gate Activation** | **100.0%** | 100.0% Emergent Review Coverage | **VERIFIED [PASSED]** |
+| **Emergency Classification Precision** | **100.0%** | > 90.0% | **EXCELLENT [PASSED]** |
+| **Exact ESI Classification Accuracy** | **52.0%** | > 50.0% | **ALIGNED [PASSED]** |
 
-### 🗂️ Confusion Matrix (Ground Truth vs. Predicted Acuity)
+### Confusion Matrix (Ground Truth vs. Predicted Acuity)
 
 ```
                 Predicted ESI 1   Predicted ESI 2   Predicted ESI 3   Predicted ESI 4   Predicted ESI 5
@@ -376,16 +376,17 @@ Actual ESI 5          0                 0                 5                 1   
 
 ---
 
-## 💼 Resume-Ready Project Highlights
+## Resume-Ready Project Highlights
 
 Use these formatted impact statements for your resume, portfolio, or LinkedIn:
 
 ```markdown
-• Smart Triage AI — Multi-Agent Clinical Intake Copilot (LangGraph, Python, Infermedica, Groq, Pinecone)
-  - Engineered an ESI-aligned multi-agent triage copilot using LangGraph to automate clinical intake and patient acuity scoring, achieving 100% emergency sensitivity (ESI 1-2) and 80.0% within-±1 acuity accuracy across 25 validated clinical vignettes.
-  - Architected a 3-tier resilient intake pipeline integrating Infermedica v3 API, Groq LLaMA 3.3 tool-calling, and deterministic regex fallbacks, ensuring zero-downtime offline execution.
+• Smart Triage AI — Multi-Agent Clinical Intake & Emergency Dispatch Copilot (LangGraph, Python, Infermedica, Groq, Pinecone)
+  - Engineered an ESI-aligned multi-agent clinical copilot using LangGraph and Python to automate emergency triage intake and patient acuity scoring, achieving 100% emergency sensitivity (ESI 1-2) and 80.0% within-±1 acuity accuracy across 25 validated clinical vignettes.
+  - Architected a 3-tier resilient intake pipeline integrating Infermedica v3 certified medical API, Groq Cloud LLaMA-3-70B tool-calling, and deterministic regex fallbacks, ensuring zero-downtime offline execution.
   - Implemented an 'Escalate, Never Downgrade' dual-engine consensus arbitration protocol with Human-in-the-Loop (HITL) clinical sign-off gates for high-risk emergent presentations.
-  - Built an evidence-based OTC medication engine with comorbidity contraindication filtering (liver dose caps, NSAID ulcer/renal exclusions, hypertension alerts) and real-time live GPS hospital routing.
+  - Built a 5-stage Emergency Dispatch & Hospital Resource Pre-Allocation Engine that automatically reserves ER trauma/resuscitation bays, assigns attending emergency physicians and trauma RNs, and stages critical medical hardware (crash cart, defibrillator, ventilator) prior to patient arrival.
+  - Developed an evidence-based OTC medication engine with comorbidity contraindication filtering (liver dose caps, NSAID ulcer/renal exclusions, hypertension alerts) and real-time live GPS hospital routing with transit ETA estimation.
   - Integrated 384-dimensional dense semantic patient memory using SentenceTransformers (all-MiniLM-L6-v2) and Pinecone vector storage for cross-visit clinical context retrieval.
 ```
 
@@ -405,9 +406,10 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for complete ter
 
 ### Medical Disclaimer
 ```
-⚕️ CLINICAL DECISION SUPPORT DISCLAIMER
+CLINICAL DECISION SUPPORT DISCLAIMER
 Smart Triage AI is an experimental decision support system developed to assist licensed 
 healthcare intake personnel. It does not provide medical diagnoses, replace professional 
 clinical judgment, or establish a doctor-patient relationship. All triage classifications, 
 medication suggestions, and escalations must be independently validated by a licensed clinician.
 ```
+
