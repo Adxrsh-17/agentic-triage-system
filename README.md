@@ -63,7 +63,16 @@
 
 ## System Architecture & Workflow
 
-The system is constructed as a deterministic LangGraph `StateGraph` where each node executes a distinct clinical task:
+![System Architecture](assets/architecture_diagram.png)
+
+The system is organized into four core architectural clusters:
+
+1. **Ingestion Cluster:** The Streamlit Nurse Workstation ingests unstructured free-text chief complaints, preset benchmark clinical vignettes, and objective physiological vitals (SpO2, HR, SBP, RR), transferring state to the Python 3.12 LangGraph execution engine.
+2. **Clinical NLP & Intent Cluster:** A resilient 3-tier extraction engine (Regex Query Parser fallback, certified Infermedica API v3 concept mapping, and Groq Cloud LLaMA-3.3-70B fast tool-calling) pairs with Sentence-Transformers (`all-MiniLM-L6-v2`) and Pinecone 384d vector memory for cross-encounter clinical context.
+3. **Risk & Consensus Cluster:** Physiological Danger-Zone guards (SpO2 < 90% -> ESI 1; SpO2 <= 92%, HR > 140, SBP < 90, RR > 30 -> ESI 2) feed into the Consensus Arbitration Engine, enforcing the "Escalate, never downgrade" protocol to prevent automated under-triaging of occult life threats.
+4. **Decision & Governance Cluster:** High-acuity cases route to the Clinician Human-in-the-Loop (HITL) Gate where the licensed triage nurse approves or overrides the AI suggestion with a mandatory clinical reason code. Every decision is tracked in `docs/triage_encounters_log.jsonl` for concordance auditing, while generating a standardized Physician SBAR Note and an HL7 FHIR R4 Transaction Bundle for hospital EHR integration.
+
+The internal workflow is constructed as a deterministic LangGraph `StateGraph` where each node executes a distinct clinical task:
 
 ```
                       ┌─────────────────────────┐
