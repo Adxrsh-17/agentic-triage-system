@@ -311,7 +311,7 @@ Open your browser at `http://localhost:8501`.
 
 ## Clinical Evaluation & Benchmark Results
 
-The system was evaluated across **45 clinically validated vignettes** spanning all 5 Emergency Severity Index (ESI) tiers (9 vignettes per tier). Full details are documented in [`docs/evaluation_report.md`](docs/evaluation_report.md).
+The system was evaluated across **45 clinically validated vignettes** spanning all 5 Emergency Severity Index (ESI) tiers (9 vignettes per tier). Full architecture details, theoretical formulations, and empirical benchmarks are documented in the [**Technical Study Guide & Specification (PDF)**](docs/agentic_triage_technical_report.pdf) and companion [**Technical Report (Markdown)**](docs/agentic_triage_technical_report.md) as well as [`docs/evaluation_report.md`](docs/evaluation_report.md).
 
 ### Performance Summary vs. Clinical Standards:
 
