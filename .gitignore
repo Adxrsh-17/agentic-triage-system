@@ -19,6 +19,8 @@ env/
 architecture_diagram.dot
 architecture_diagram.svg
 scratch/
+docs/smart_triage_presentation.*
+scripts/build_presentation_artifacts.py
 
 # OS/editor files
 .DS_Store

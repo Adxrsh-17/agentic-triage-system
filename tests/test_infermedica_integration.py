@@ -180,7 +180,8 @@ class TestInfermedicaIntegration(unittest.TestCase):
             self.assertIn(res["risk_level"], ["LOW", "MEDIUM", "HIGH"])
             self.assertTrue(1 <= res["esi_level"] <= 5)
             self.assertGreaterEqual(len(res.get("workflow_trace", [])), 4)
-            self.assertGreaterEqual(len(res.get("medications", [])), 1)
+            self.assertTrue(bool(res.get("sbar_note")))
+            self.assertIn("resourceType", res.get("fhir_bundle", {}))
 
 
 if __name__ == "__main__":

@@ -10,22 +10,15 @@ from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
-from agent.dispatch_hub import get_dispatch_hub
+from agent.audit_logger import get_audit_logger
 from agent.infermedica_client import (
     get_diagnosis as get_diagnosis_infermedica,
-    get_medication_guidance,
     get_triage as get_triage_infermedica,
     is_infermedica_configured,
     parse_symptoms as parse_symptoms_infermedica,
 )
-from agent.location_tools import (
-    build_directions_url,
-    calculate_transit_eta,
-    find_nearby_places,
-    geocode_address,
-    get_current_location,
-    rank_hospitals_for_triage,
-)
+from agent.sbar_generator import generate_fhir_r4_bundle, generate_sbar_note
+
 
 try:
     from pinecone import Pinecone, ServerlessSpec
@@ -104,11 +97,8 @@ class AgentState(TypedDict, total=False):
     messages: List[Dict[str, str]]
     user_id: str
     patient_sex: Optional[str]
-    location_address: Optional[str]
-    location_lat: Optional[float]
-    location_lng: Optional[float]
-    nearby_facilities: List[Dict[str, Any]]
-    hospital_recommendations: List[Dict[str, Any]]
+    vitals: Dict[str, Any]
+    vital_triggers: List[str]
     symptoms: List[str]
     duration_days: int
     severity: str
@@ -116,13 +106,14 @@ class AgentState(TypedDict, total=False):
     red_flags: List[str]
     infermedica_evidence: Optional[List[Dict[str, Any]]]
     infermedica_triage: Optional[Dict[str, Any]]
-    medications: List[Dict[str, Any]]
     intake_method: str
     intake_summary: str
     followup_questions: List[str]
     patient_profile: Dict[str, Any]
     risk_assessment: Dict[str, Any]
     safety_validation: Dict[str, Any]
+    sbar_note: str
+    fhir_bundle: Dict[str, Any]
     final_response: str
     workflow_trace: List[Dict[str, Any]]
     tool_calls_made: List[str]
@@ -130,8 +121,19 @@ class AgentState(TypedDict, total=False):
     next_step: str
     approval_decision: Optional[str]
     approval_note: Optional[str]
+    nurse_override_esi: Optional[int]
+    nurse_override_reason: Optional[str]
+    nurse_notes: Optional[str]
     awaiting_human_review: bool
     hitl_required: bool
+    # Backward compatibility placeholders
+    medications: List[Dict[str, Any]]
+    nearby_facilities: List[Dict[str, Any]]
+    hospital_recommendations: List[Dict[str, Any]]
+    location_address: Optional[str]
+    location_lat: Optional[float]
+    location_lng: Optional[float]
+
 
 
 def _append_trace(state: AgentState, node: str, summary: str, tools: Optional[List[str]] = None) -> None:
@@ -584,6 +586,60 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
     }
 
 
+def extract_vitals_from_text(text: str) -> Dict[str, Any]:
+    """
+    Extract vital signs from clinical triage text (BP, HR, RR, SpO2, Temp).
+    Used to augment nurse-entered physiological measurements.
+    """
+    vitals: Dict[str, Any] = {}
+    lowered = text.lower()
+
+    # Blood pressure: e.g. 120/80, bp 130/85, bp: 90/60
+    bp_match = re.search(r"(?:bp|blood pressure)?\s*[:=]?\s*(\d{2,3})\s*/\s*(\d{2,3})", lowered)
+    if bp_match:
+        try:
+            vitals["sbp"] = int(bp_match.group(1))
+            vitals["dbp"] = int(bp_match.group(2))
+        except (ValueError, TypeError):
+            pass
+
+    # Heart rate / pulse: e.g. hr 110, pulse 95, hr: 120, heart rate 102
+    hr_match = re.search(r"(?:hr|pulse|heart rate)\s*[:=]?\s*(\d{2,3})", lowered)
+    if hr_match:
+        try:
+            vitals["hr"] = int(hr_match.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    # Respiratory rate: e.g. rr 28, resp rate 24, rr: 32
+    rr_match = re.search(r"(?:rr|resp(?:iratory)? rate)\s*[:=]?\s*(\d{1,2})", lowered)
+    if rr_match:
+        try:
+            vitals["rr"] = int(rr_match.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    # SpO2 / Oxygen Saturation: e.g. spo2 91%, o2 sat 90%, oxygen 89%, spo2: 94
+    spo2_match = re.search(r"(?:spo2|o2 sat(?:uration)?|pulse ox|oxygen)\s*[:=]?\s*(\d{2,3})\s*%?", lowered)
+    if spo2_match:
+        try:
+            val = int(spo2_match.group(1))
+            if 50 <= val <= 100:
+                vitals["spo2"] = val
+        except (ValueError, TypeError):
+            pass
+
+    # Temperature: e.g. temp 101.4, temp: 38.5, temperature 102 f
+    temp_match = re.search(r"(?:temp(?:erature)?)\s*[:=]?\s*(\d{2,3}(?:\.\d)?)", lowered)
+    if temp_match:
+        try:
+            vitals["temp"] = float(temp_match.group(1))
+        except (ValueError, TypeError):
+            pass
+
+    return vitals
+
+
 def retrieve_patient_memory(user_id: str, query_text: str) -> Dict[str, Any]:
     return MEMORY_STORE.retrieve_patient_profile(user_id, query_text)
 
@@ -632,13 +688,16 @@ def assess_medical_risk(
     profile: Dict[str, Any],
     severity: str,
     red_flags: Optional[List[str]] = None,
+    vitals: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Assess medical risk level (LOW/MEDIUM/HIGH) and ESI Acuity Level (1-5)
-    aligned with Emergency Severity Index (ESI) triage standards.
+    aligned with Emergency Severity Index (ESI) triage standards and vital sign instability.
     """
     lowered = [item.lower() for item in symptoms]
     red_flags = red_flags or []
+    vitals = vitals or {}
+    vital_triggers: List[str] = []
 
     # ESI Level 1 (Resuscitation - Immediate life-saving intervention needed)
     resuscitation_keywords = {
@@ -699,19 +758,33 @@ def assess_medical_risk(
     esi_level = 5
     esi_rationale = ""
 
+    spo2 = vitals.get("spo2")
+    hr = vitals.get("hr")
+    rr = vitals.get("rr")
+    sbp = vitals.get("sbp")
+
     # Check ESI 1 first (Resuscitation)
     is_esi_1 = any(any(k in s for k in resuscitation_keywords) for s in lowered) or any(
         any(k in rf.lower() for k in resuscitation_keywords) for rf in red_flags
     )
+    if not is_esi_1 and spo2 is not None:
+        try:
+            if float(spo2) < 90:
+                is_esi_1 = True
+                reasons.append(f"Critical hypoxia (SpO2 {spo2}%) requiring immediate resuscitation intervention")
+                vital_triggers.append(f"Critical Hypoxia: SpO2 {spo2}% (<90%)")
+        except (ValueError, TypeError):
+            pass
 
     if is_esi_1:
         risk_level = "HIGH"
         esi_level = 1
         emergency_recommended = True
-        reasons.append("Critical life-threatening presentation requiring immediate resuscitation")
+        if not reasons:
+            reasons.append("Critical life-threatening presentation requiring immediate resuscitation")
         esi_rationale = "Immediate life-saving intervention required (ESI 1 - Resuscitation)"
     else:
-        # Check ESI 2 (Emergent / High-risk)
+        # Check ESI 2 (Emergent / High-risk or Danger Zone Vitals)
         is_esi_2 = False
         for symptom in lowered:
             if any(flag in symptom for flag in emergent_keywords):
@@ -721,6 +794,28 @@ def assess_medical_risk(
         if not is_esi_2 and red_flags:
             is_esi_2 = True
             reasons.append(f"Emergency red-flag indicators detected: {', '.join(red_flags)}")
+
+        # Evaluate objective danger zone vitals
+        if not is_esi_2:
+            try:
+                if spo2 is not None and float(spo2) <= 92:
+                    is_esi_2 = True
+                    reasons.append(f"Significant hypoxia (SpO2 {spo2}% <= 92%) warrants emergent evaluation")
+                    vital_triggers.append(f"Hypoxia: SpO2 {spo2}%")
+                elif hr is not None and (float(hr) < 40 or float(hr) > 140):
+                    is_esi_2 = True
+                    reasons.append(f"Hemodynamic instability (HR {hr} bpm) warrants emergent evaluation")
+                    vital_triggers.append(f"Extreme Heart Rate: {hr} bpm")
+                elif rr is not None and (float(rr) < 8 or float(rr) > 30):
+                    is_esi_2 = True
+                    reasons.append(f"Severe respiratory instability (RR {rr}/min) warrants emergent evaluation")
+                    vital_triggers.append(f"Extreme Respiratory Rate: {rr}/min")
+                elif sbp is not None and float(sbp) < 90:
+                    is_esi_2 = True
+                    reasons.append(f"Hypotensive shock danger (SBP {sbp} mmHg < 90) warrants emergent evaluation")
+                    vital_triggers.append(f"Hypotension: SBP {sbp} mmHg")
+            except (ValueError, TypeError):
+                pass
 
         if is_esi_2:
             risk_level = "HIGH"
@@ -845,7 +940,9 @@ def assess_medical_risk(
         "emergency_recommended": emergency_recommended,
         "risk_reasons": reasons,
         "possible_concerns": possible_concerns,
+        "vital_triggers": vital_triggers,
     }
+
 
 
 def check_emergency_red_flags(symptoms: List[str]) -> bool:
@@ -908,32 +1005,34 @@ def finalize_response(
     is_emergency: bool,
     profile: Dict[str, Any],
     pertinent_negatives: Optional[List[str]] = None,
-    nearby_facilities: Optional[List[Dict[str, Any]]] = None,
     intake_method: Optional[str] = None,
     infermedica_triage: Optional[Dict[str, Any]] = None,
-    medications: Optional[List[Dict[str, Any]]] = None,
+    vital_triggers: Optional[List[str]] = None,
+    **kwargs: Any,
 ) -> str:
-    icon = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(risk_level, "⚪")
     esi_titles = {
-        1: "Level 1 - Resuscitation (Immediate life threat)",
-        2: "Level 2 - Emergent (High risk / Should not wait)",
-        3: "Level 3 - Urgent (Multiple clinical resources needed)",
-        4: "Level 4 - Less Urgent (Single resource needed)",
-        5: "Level 5 - Non-Urgent (Routine clinic / home care)",
+        1: "ESI Level 1 - Resuscitation (Immediate Life Threat)",
+        2: "ESI Level 2 - Emergent (High Risk / Should Not Wait)",
+        3: "ESI Level 3 - Urgent (Multiple Clinical Resources Needed)",
+        4: "ESI Level 4 - Less Urgent (Single Clinical Resource Needed)",
+        5: "ESI Level 5 - Non-Urgent (Routine Clinic / Outpatient Care)",
     }
     esi_title = esi_titles.get(esi_level, f"Level {esi_level}")
 
     lines = [
-        f"## {icon} Risk Level: {risk_level} | ESI Acuity: Level {esi_level}",
-        f"**Classification:** {esi_title}",
+        f"## Clinical Triage Decision Support | {esi_title}",
+        f"**Risk Category:** {risk_level}",
         f"**Acuity Rationale:** {esi_rationale}",
     ]
+
+    if vital_triggers:
+        lines.append(f"**Vital Signs Triggers:** {', '.join(vital_triggers)}")
 
     if infermedica_triage:
         inf_desc = infermedica_triage.get("description", "")
         inf_label = infermedica_triage.get("label", "")
         inf_level = infermedica_triage.get("triage_level", "")
-        lines.append(f"**Infermedica Engine Verdict:** `{inf_level}` {f'({inf_label})' if inf_label else ''}")
+        lines.append(f"**Certified Engine Level:** `{inf_level}` {f'({inf_label})' if inf_label else ''}")
         if inf_desc:
             lines.append(f"**Clinical Engine Summary:** {inf_desc}")
 
@@ -942,37 +1041,26 @@ def finalize_response(
     if is_emergency or risk_level == "HIGH" or esi_level in (1, 2):
         lines.extend(
             [
-                "### Immediate medical attention required",
-                "",
-                "Your symptoms suggest a potentially serious condition and should be evaluated right away.",
-                "",
-                "- Call emergency services (911) immediately.",
-                "- Go to the nearest emergency room now.",
-                "- Do not drive yourself if you feel unstable or short of breath.",
+                "### Immediate Clinical Attention Required",
+                "- Patient meets high-acuity emergency criteria (ESI 1 or 2).",
+                "- Priority resuscitation bay / acute monitoring bed allocation required.",
+                "- Licensed triage nurse review and physician notification required.",
             ]
         )
     elif risk_level == "MEDIUM" or esi_level in (3, 4):
         lines.extend(
             [
-                "### Medical consultation advised",
-                "",
-                "Your symptoms deserve timely evaluation by a clinician, ideally within the next 24 to 48 hours.",
-                "",
-                "- Arrange an urgent care or doctor visit.",
-                "- Rest, hydrate, and monitor for any worsening symptoms.",
-                "- Seek emergency care sooner if your symptoms escalate.",
+                "### Urgent Clinical Track Advised",
+                "- Patient requires multi-resource (ESI 3) or focused single-resource (ESI 4) clinic evaluation.",
+                "- Order initial diagnostic workup (labs, imaging) per departmental protocol.",
             ]
         )
     else:
         lines.extend(
             [
-                "### Home care may be reasonable",
-                "",
-                "Your symptoms appear lower risk based on the details available right now.",
-                "",
-                "- Rest and stay hydrated.",
-                "- Monitor for new or worsening symptoms.",
-                "- Schedule routine medical follow-up if symptoms persist.",
+                "### Routine Outpatient Intake Track",
+                "- Patient presentation is low-acuity (ESI 5), suitable for routine ambulatory care or home management.",
+                "- No acute emergency department resources required.",
             ]
         )
 
@@ -985,26 +1073,8 @@ def finalize_response(
     if profile.get("conditions"):
         lines.append(f"**Known conditions considered:** {', '.join(profile['conditions'])}")
     if concerns:
-        lines.extend(["", "**Possible concerns** *(not a diagnosis)*:"])
+        lines.extend(["", "**Differential Concerns (Non-Diagnostic):**"])
         lines.extend([f"- {item}" for item in concerns])
-
-    if medications:
-        lines.extend(
-            [
-                "",
-                "### 💊 Suggested Over-The-Counter (OTC) & Supportive Care",
-                "> **Clinical Decision Support Guidance:** Over-the-counter remedies and supportive management suggested for symptom relief. Verify allergies, organ function, and contraindications before use.",
-            ]
-        )
-        for med in medications:
-            cat = med.get("category", "Supportive Care")
-            name = med.get("name", "Medication")
-            purpose = med.get("purpose", "")
-            lines.append(f"- **[{cat}] {name}**: {purpose}")
-            if med.get("dosage"):
-                lines.append(f"  - *Recommended Dosage:* {med['dosage']}")
-            if med.get("precautions"):
-                lines.append(f"  - *Safety Precautions:* {med['precautions']}")
 
     if followup_questions and risk_level != "HIGH":
         lines.extend(["", "**Helpful follow-up questions for a clinician:**"])
@@ -1036,9 +1106,9 @@ def supervisor_node(state: AgentState) -> AgentState:
         next_step = "risk"
     elif "safety" not in completed:
         next_step = "safety"
-    elif "resources" not in completed:
-        next_step = "resources"
-    elif state.get("hitl_required"):
+    elif "sbar" not in completed:
+        next_step = "sbar"
+    elif state.get("hitl_required") and "human_review" not in completed:
         next_step = "human_review"
     else:
         next_step = "finish"
@@ -1055,6 +1125,14 @@ def intake_node(state: AgentState) -> AgentState:
     profile = retrieve_patient_memory(updated["user_id"], latest_input)
     age = profile.get("age", 25)
     sex = updated.get("patient_sex", "male") or "male"
+
+    # Merge explicitly provided vitals with any vitals found in text
+    vitals = dict(updated.get("vitals") or {})
+    extracted_vitals = extract_vitals_from_text(latest_input)
+    for k, v in extracted_vitals.items():
+        if k not in vitals or vitals[k] is None:
+            vitals[k] = v
+    updated["vitals"] = vitals
 
     extracted = None
     infermedica_evidence = None
@@ -1126,11 +1204,23 @@ def intake_node(state: AgentState) -> AgentState:
         f"; negatives: {', '.join(updated['pertinent_negatives'])}" if updated["pertinent_negatives"] else ""
     )
     red_flags_text = f"; red flags: {', '.join(updated['red_flags'])}" if updated["red_flags"] else ""
+    vitals_parts = []
+    if vitals.get("sbp") and vitals.get("dbp"):
+        vitals_parts.append(f"BP {vitals['sbp']}/{vitals['dbp']}")
+    if vitals.get("hr"):
+        vitals_parts.append(f"HR {vitals['hr']}")
+    if vitals.get("rr"):
+        vitals_parts.append(f"RR {vitals['rr']}")
+    if vitals.get("spo2"):
+        vitals_parts.append(f"SpO2 {vitals['spo2']}%")
+    if vitals.get("temp"):
+        vitals_parts.append(f"Temp {vitals['temp']}F")
+    vitals_text = f"; vitals: {', '.join(vitals_parts)}" if vitals_parts else ""
 
     updated["intake_summary"] = (
         f"[{method_badge}] Identified symptoms: {', '.join(extracted['symptoms']) or 'none'}; "
         f"duration: {extracted['duration_days']} day(s); severity: {extracted['severity']}"
-        f"{negatives_text}{red_flags_text}; memory source: {profile.get('memory_source', 'local')}"
+        f"{negatives_text}{red_flags_text}{vitals_text}; memory source: {profile.get('memory_source', 'local')}"
     )
     updated.setdefault("completed_steps", []).append("intake")
 
@@ -1140,6 +1230,8 @@ def intake_node(state: AgentState) -> AgentState:
         else ("extract_symptoms_llm" if updated["intake_method"] == "llm" else "extract_symptoms_regex"),
         "retrieve_patient_memory",
     ]
+    if vitals_parts:
+        tools_used.append("extract_vitals_from_text")
     if followups:
         tools_used.append(
             "get_diagnosis_infermedica"
@@ -1162,15 +1254,19 @@ def risk_node(state: AgentState) -> AgentState:
     age = profile.get("age", 25)
     sex = updated.get("patient_sex", "male") or "male"
     evidence = updated.get("infermedica_evidence")
+    vitals = updated.get("vitals", {})
 
-    # 1. Compute internal risk & ESI assessment
+    # 1. Compute internal risk & ESI assessment with physiological vitals
     internal_assessment = assess_medical_risk(
         symptoms=updated.get("symptoms", []),
         duration=updated.get("duration_days", 0),
         profile=profile,
         severity=updated.get("severity", "unspecified"),
         red_flags=updated.get("red_flags", []),
+        vitals=vitals,
     )
+    vital_triggers = internal_assessment.get("vital_triggers", [])
+    updated["vital_triggers"] = vital_triggers
 
     tools_called = ["assess_medical_risk", "check_emergency_red_flags"]
     infermedica_triage_res = None
@@ -1246,6 +1342,7 @@ def risk_node(state: AgentState) -> AgentState:
             "is_emergency": emergency,
             "risk_reasons": reasons,
             "possible_concerns": concerns,
+            "vital_triggers": vital_triggers,
             "infermedica_triage": infermedica_triage_res,
             "internal_assessment": internal_assessment,
             "consensus_applied": True,
@@ -1258,24 +1355,14 @@ def risk_node(state: AgentState) -> AgentState:
         )
         assessment = internal_assessment
         assessment["is_emergency"] = emergency
+        assessment["vital_triggers"] = vital_triggers
         assessment["infermedica_triage"] = None
         assessment["consensus_applied"] = False
 
-    # 4. Generate OTC and supportive medication recommendations
-    medications = get_medication_guidance(
-        symptoms=updated.get("symptoms", []),
-        conditions=profile.get("conditions", []),
-        age=age,
-        sex=sex,
-        risk_level=assessment["risk_level"],
-        is_emergency=assessment["is_emergency"],
-    )
-    tools_called.append("get_medication_guidance")
-
-    updated["medications"] = medications
+    updated["medications"] = []
     updated["infermedica_triage"] = infermedica_triage_res
     updated["risk_assessment"] = assessment
-    updated["hitl_required"] = assessment["risk_level"] == "HIGH"
+    updated["hitl_required"] = assessment["risk_level"] == "HIGH" or assessment.get("esi_level", 5) in (1, 2)
     updated["awaiting_human_review"] = False
     updated.setdefault("completed_steps", []).append("risk")
 
@@ -1308,17 +1395,16 @@ def safety_node(state: AgentState) -> AgentState:
         is_emergency=assessment.get("is_emergency", False),
         profile=updated.get("patient_profile", {}),
         pertinent_negatives=updated.get("pertinent_negatives", []),
-        nearby_facilities=updated.get("nearby_facilities", []),
         intake_method=updated.get("intake_method"),
         infermedica_triage=updated.get("infermedica_triage"),
-        medications=updated.get("medications", []),
+        vital_triggers=updated.get("vital_triggers", []),
     )
     safety = perform_safety_check(response, assessment.get("is_emergency", False))
     if not safety["safe_to_proceed"]:
         response += "\n\nSafety note: This guidance was adjusted to stay informational and non-diagnostic."
 
     if updated.get("hitl_required"):
-        response += "\n\nDoctor approval is required before this high-risk triage result is considered complete."
+        response += "\n\nLicensed nurse sign-off is required before this high-risk triage recommendation is released."
 
     updated["final_response"] = response
     updated["safety_validation"] = safety
@@ -1326,155 +1412,143 @@ def safety_node(state: AgentState) -> AgentState:
     _append_trace(
         updated,
         "safety",
-        f"Final response drafted with ESI Level {assessment.get('esi_level', 5)} and safety-checked",
+        f"Final clinical guidance drafted with ESI Level {assessment.get('esi_level', 5)} and safety-checked",
         ["finalize_response", "perform_safety_check"],
     )
     return updated
 
 
-def resources_node(state: AgentState) -> AgentState:
+def sbar_node(state: AgentState) -> AgentState:
     """
-    Location-based resource node: queries real nearby facilities (hospitals/pharmacies),
-    enriches them with live DispatchHub capacity telemetry, and ranks them using
-    multi-factor clinical proximity + capability matching.
+    Generate structured SBAR clinical handoff note and HL7 FHIR R4 Transaction Bundle.
     """
     updated = dict(state)
-    lat = updated.get("location_lat")
-    lng = updated.get("location_lng")
-    address = updated.get("location_address")
-
-    # If coordinates not yet resolved, geocode address or auto-detect live location
-    if lat is None or lng is None:
-        if address and address.strip():
-            coords = geocode_address(address.strip())
-            if coords:
-                lat, lng = coords
-                updated["location_lat"] = lat
-                updated["location_lng"] = lng
-        else:
-            curr_loc = get_current_location()
-            if curr_loc:
-                lat, lng = curr_loc["lat"], curr_loc["lng"]
-                updated["location_lat"] = lat
-                updated["location_lng"] = lng
-                updated["location_address"] = curr_loc["address"]
-                address = curr_loc["address"]
-
-    facilities: List[Dict[str, Any]] = []
-    hospital_recommendations: List[Dict[str, Any]] = []
-    queried_types: List[str] = []
-
-    if lat is not None and lng is not None:
-        assessment = updated.get("risk_assessment", {})
-        risk_level = assessment.get("risk_level", "LOW")
-        esi_level = assessment.get("esi_level", 5)
-        is_emergency = assessment.get("is_emergency", False)
-
-        if risk_level == "HIGH" or is_emergency or esi_level in (1, 2):
-            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=12000)
-            queried_types = ["hospital"]
-            # Ingest & enrich discovered places into DispatchHub
-            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
-            hospital_recommendations = rank_hospitals_for_triage(
-                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
-            )
-            facilities = hospital_recommendations
-        elif risk_level == "MEDIUM" or esi_level in (3, 4):
-            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=8000)
-            raw_pharmacies = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
-            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
-            hospital_recommendations = rank_hospitals_for_triage(
-                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
-            )
-            for pharm in raw_pharmacies:
-                if "lat" in pharm and "lng" in pharm:
-                    pharm["directions_url"] = build_directions_url(lat, lng, pharm["lat"], pharm["lng"], dest_name=pharm.get("name"))
-            facilities = hospital_recommendations[:3] + raw_pharmacies[:2]
-            queried_types = ["hospital", "pharmacy"]
-        else:
-            raw_hospitals = find_nearby_places(lat, lng, place_type="hospital", radius_m=6000)
-            raw_pharmacies = find_nearby_places(lat, lng, place_type="pharmacy", radius_m=5000)
-            enriched_hospitals = get_dispatch_hub().ingest_discovered_facilities(raw_hospitals, lat, lng)
-            hospital_recommendations = rank_hospitals_for_triage(
-                enriched_hospitals, esi_level=esi_level, symptoms=updated.get("symptoms", [])
-            )
-            for pharm in raw_pharmacies:
-                if "lat" in pharm and "lng" in pharm:
-                    pharm["directions_url"] = build_directions_url(lat, lng, pharm["lat"], pharm["lng"], dest_name=pharm.get("name"))
-            facilities = hospital_recommendations[:2] + raw_pharmacies[:3]
-            queried_types = ["hospital", "pharmacy"]
-
-        loc_label = address or f"{lat:.4f}, {lng:.4f}"
-        summary = f"Located and ranked {len(hospital_recommendations)} emergency hospital(s) near {loc_label}"
-        tools_called = ["find_nearby_places", "DispatchHub.ingest", "rank_hospitals_for_triage", "build_directions_url"]
-    else:
-        summary = "Patient location not specified; skipped nearby facility search"
-        tools_called = []
-
-    updated["nearby_facilities"] = facilities
-    updated["hospital_recommendations"] = hospital_recommendations
-
-    # Re-finalize response to include the newly discovered facilities and medications
+    profile = updated.get("patient_profile", {})
     assessment = updated.get("risk_assessment", {})
-    updated["final_response"] = finalize_response(
-        risk_level=assessment.get("risk_level", "LOW"),
-        esi_level=assessment.get("esi_level", 5),
-        esi_rationale=assessment.get("esi_rationale", "Routine evaluation"),
-        symptoms=updated.get("symptoms", []),
-        duration=updated.get("duration_days", 0),
-        concerns=assessment.get("possible_concerns", []),
-        followup_questions=updated.get("followup_questions", []),
-        is_emergency=assessment.get("is_emergency", False),
-        profile=updated.get("patient_profile", {}),
-        pertinent_negatives=updated.get("pertinent_negatives", []),
-        nearby_facilities=facilities,
-        intake_method=updated.get("intake_method"),
-        infermedica_triage=updated.get("infermedica_triage"),
-        medications=updated.get("medications", []),
+    user_id = updated.get("user_id", "default")
+    latest_input = _latest_user_message(updated.get("messages", []))
+    age = profile.get("age", 25)
+    sex = updated.get("patient_sex", "male") or "male"
+    esi_level = assessment.get("esi_level", 5)
+    esi_rationale = assessment.get("esi_rationale", "")
+    symptoms = updated.get("symptoms", [])
+    vitals = updated.get("vitals", {})
+    vital_triggers = updated.get("vital_triggers", [])
+    pertinent_negatives = updated.get("pertinent_negatives", [])
+    concerns = assessment.get("possible_concerns", [])
+    nurse_esi = updated.get("nurse_override_esi")
+    nurse_notes = updated.get("nurse_notes") or updated.get("approval_note")
+
+    sbar_note = generate_sbar_note(
+        patient_id=user_id,
+        age=age,
+        sex=sex,
+        chief_complaint=latest_input,
+        symptoms=symptoms,
+        vitals=vitals,
+        esi_level=esi_level,
+        esi_rationale=esi_rationale,
+        vital_triggers=vital_triggers,
+        pertinent_negatives=pertinent_negatives,
+        differential_concerns=concerns,
+        nurse_override_esi=nurse_esi,
+        nurse_notes=nurse_notes,
     )
 
-    if updated.get("hitl_required"):
-        updated["final_response"] += "\n\nDoctor approval is required before this high-risk triage result is considered complete."
+    fhir_bundle = generate_fhir_r4_bundle(
+        patient_id=user_id,
+        age=age,
+        sex=sex,
+        chief_complaint=latest_input,
+        symptoms=symptoms,
+        vitals=vitals,
+        esi_level=esi_level,
+        esi_rationale=esi_rationale,
+        sbar_note=sbar_note,
+        vital_triggers=vital_triggers,
+        nurse_override_esi=nurse_esi,
+    )
 
-    updated.setdefault("completed_steps", []).append("resources")
-    _append_trace(updated, "resources", summary, tools_called)
+    updated["sbar_note"] = sbar_note
+    updated["fhir_bundle"] = fhir_bundle
+    updated.setdefault("completed_steps", []).append("sbar")
+
+    _append_trace(
+        updated,
+        "sbar",
+        f"Generated SBAR clinical handoff note and HL7 FHIR R4 Bundle (ID: {fhir_bundle.get('id', 'N/A')[:8]}...)",
+        ["generate_sbar_note", "generate_fhir_r4_bundle"],
+    )
     return updated
 
 
 def human_review_node(state: AgentState) -> AgentState:
     updated = dict(state)
     raw_decision = (updated.get("approval_decision") or "").strip().lower()
-    decision = None
-    if raw_decision in {"approved", "approve"}:
-        decision = "approved"
-    elif raw_decision in {"rejected", "reject"}:
-        decision = "rejected"
+    override_esi = updated.get("nurse_override_esi")
+    override_reason = updated.get("nurse_override_reason") or ""
+    nurse_notes = updated.get("nurse_notes") or (updated.get("approval_note") or "").strip()
 
-    if decision not in {"approved", "rejected"}:
+    decision = None
+    if raw_decision in {"approved", "approve", "accept", "accepted"}:
+        decision = "approved"
+    elif raw_decision in {"rejected", "reject", "override", "overridden"}:
+        decision = "overridden"
+    elif override_esi is not None:
+        assessment_esi = updated.get("risk_assessment", {}).get("esi_level", 5)
+        decision = "overridden" if override_esi != assessment_esi else "approved"
+
+    if decision not in {"approved", "overridden"}:
         updated["awaiting_human_review"] = True
         updated["hitl_required"] = True
         _append_trace(
             updated,
             "human_review",
-            "Execution paused for doctor approval",
+            "Execution paused for triage nurse review & sign-off",
             [],
         )
         return updated
 
     updated["awaiting_human_review"] = False
     updated["hitl_required"] = False
-    note = (updated.get("approval_note") or "").strip()
+
+    assessment = updated.get("risk_assessment", {})
+    suggested_esi = assessment.get("esi_level", 5)
+    final_esi = override_esi if (decision == "overridden" and override_esi is not None) else suggested_esi
+
+    # Audit Log the encounter for clinical concordance tracking
+    audit = get_audit_logger()
+    audit.log_encounter(
+        patient_id=updated.get("user_id", "default"),
+        chief_complaint=_latest_user_message(updated.get("messages", [])),
+        symptoms=updated.get("symptoms", []),
+        vitals=updated.get("vitals", {}),
+        ai_suggested_esi=suggested_esi,
+        ai_rationale=assessment.get("esi_rationale", ""),
+        ai_risk_level=assessment.get("risk_level", "LOW"),
+        nurse_decision="override" if (decision == "overridden" and override_esi != suggested_esi) else "accept",
+        nurse_final_esi=final_esi,
+        override_reason=override_reason,
+        nurse_notes=nurse_notes,
+        vital_triggers=updated.get("vital_triggers", []),
+        intake_method=updated.get("intake_method", "regex_fallback"),
+        fhir_bundle_id=updated.get("fhir_bundle", {}).get("id"),
+    )
+
     if decision == "approved":
-        approval_line = "Doctor approval recorded. High-risk guidance has been cleared for release."
+        approval_line = f"Nurse Acceptance Recorded: AI ESI Level {suggested_esi} verified and approved."
     else:
-        approval_line = "Doctor review rejected the automated triage result. Immediate clinician follow-up is required."
+        approval_line = (
+            f"Nurse Override Recorded: Changed AI ESI {suggested_esi} -> ESI {final_esi}. "
+            f"Reason: {override_reason or 'Clinical judgment'}."
+        )
 
-    if note:
-        approval_line += f" Note: {note}"
+    if nurse_notes:
+        approval_line += f" Clinical note: {nurse_notes}"
 
-    updated["final_response"] = f"{updated.get('final_response', '')}\n\n---\n{approval_line}".strip()
+    updated["final_response"] = f"{updated.get('final_response', '')}\n\n---\n**Clinician Sign-off:** {approval_line}".strip()
     updated.setdefault("completed_steps", []).append("human_review")
-    _append_trace(updated, "human_review", approval_line, [])
+    _append_trace(updated, "human_review", approval_line, ["audit_logger.log_encounter"])
     return updated
 
 
@@ -1484,7 +1558,7 @@ def finish_node(state: AgentState) -> AgentState:
     return updated
 
 
-def _route_from_supervisor(state: AgentState) -> Literal["intake", "risk", "safety", "resources", "human_review", "finish"]:
+def _route_from_supervisor(state: AgentState) -> Literal["intake", "risk", "safety", "sbar", "human_review", "finish"]:
     return state["next_step"]  # type: ignore[return-value]
 
 
@@ -1494,7 +1568,7 @@ def build_multi_agent():
     workflow.add_node("intake", intake_node)
     workflow.add_node("risk", risk_node)
     workflow.add_node("safety", safety_node)
-    workflow.add_node("resources", resources_node)
+    workflow.add_node("sbar", sbar_node)
     workflow.add_node("human_review", human_review_node)
     workflow.add_node("finish", finish_node)
     workflow.set_entry_point("supervisor")
@@ -1506,7 +1580,7 @@ def build_multi_agent():
             "intake": "intake",
             "risk": "risk",
             "safety": "safety",
-            "resources": "resources",
+            "sbar": "sbar",
             "human_review": "human_review",
             "finish": "finish",
         },
@@ -1514,7 +1588,7 @@ def build_multi_agent():
     workflow.add_edge("intake", "supervisor")
     workflow.add_edge("risk", "supervisor")
     workflow.add_edge("safety", "supervisor")
-    workflow.add_edge("resources", "supervisor")
+    workflow.add_edge("sbar", "supervisor")
     workflow.add_edge("finish", END)
     workflow.add_edge("human_review", END)
     return workflow.compile()
@@ -1530,22 +1604,33 @@ class MultiAgentSystem:
         user_id: str = "default",
         age: int = 25,
         sex: str = "male",
+        vitals: Optional[Dict[str, Any]] = None,
         conditions: Optional[List[str]] = None,
         history: Optional[List[Dict[str, str]]] = None,
         pending_state: Optional[Dict[str, Any]] = None,
         approval_decision: Optional[str] = None,
         approval_note: Optional[str] = None,
+        nurse_override_esi: Optional[int] = None,
+        nurse_override_reason: Optional[str] = None,
+        nurse_notes: Optional[str] = None,
         location_address: Optional[str] = None,
         location_lat: Optional[float] = None,
         location_lng: Optional[float] = None,
     ) -> Dict[str, Any]:
         conditions = conditions or []
         history = history or []
+        vitals = vitals or {}
 
         if pending_state:
             state = deepcopy(pending_state)
             state["approval_decision"] = approval_decision
             state["approval_note"] = approval_note
+            if nurse_override_esi is not None:
+                state["nurse_override_esi"] = nurse_override_esi
+            if nurse_override_reason:
+                state["nurse_override_reason"] = nurse_override_reason
+            if nurse_notes:
+                state["nurse_notes"] = nurse_notes
         else:
             set_patient_context(user_id, age, conditions)
             MEMORY_STORE.upsert_patient_profile(user_id, age, conditions)
@@ -1554,10 +1639,13 @@ class MultiAgentSystem:
                 "messages": messages,
                 "user_id": user_id,
                 "patient_sex": sex,
+                "vitals": vitals,
+                "vital_triggers": [],
                 "location_address": location_address,
                 "location_lat": location_lat,
                 "location_lng": location_lng,
                 "nearby_facilities": [],
+                "hospital_recommendations": [],
                 "symptoms": [],
                 "duration_days": 0,
                 "severity": "unspecified",
@@ -1572,13 +1660,18 @@ class MultiAgentSystem:
                 "patient_profile": {},
                 "risk_assessment": {},
                 "safety_validation": {},
+                "sbar_note": "",
+                "fhir_bundle": {},
                 "final_response": "",
                 "workflow_trace": [],
                 "tool_calls_made": [],
                 "completed_steps": [],
                 "next_step": "intake",
-                "approval_decision": None,
-                "approval_note": None,
+                "approval_decision": approval_decision,
+                "approval_note": approval_note,
+                "nurse_override_esi": nurse_override_esi,
+                "nurse_override_reason": nurse_override_reason,
+                "nurse_notes": nurse_notes,
                 "awaiting_human_review": False,
                 "hitl_required": False,
             }
@@ -1601,6 +1694,10 @@ class MultiAgentSystem:
             "tool_calls_made": final_state.get("tool_calls_made", []),
             "patient_profile": final_state.get("patient_profile", {}),
             "symptoms": final_state.get("symptoms", []),
+            "vitals": final_state.get("vitals", {}),
+            "vital_triggers": final_state.get("vital_triggers", []),
+            "sbar_note": final_state.get("sbar_note", ""),
+            "fhir_bundle": final_state.get("fhir_bundle", {}),
             "duration_days": final_state.get("duration_days", 0),
             "severity": final_state.get("severity", "unspecified"),
             "pertinent_negatives": final_state.get("pertinent_negatives", []),
@@ -1610,6 +1707,9 @@ class MultiAgentSystem:
             "medications": final_state.get("medications", []),
             "intake_method": final_state.get("intake_method", "regex_fallback"),
             "followup_questions": final_state.get("followup_questions", []),
+            "nurse_override_esi": final_state.get("nurse_override_esi"),
+            "nurse_override_reason": final_state.get("nurse_override_reason"),
+            "nurse_notes": final_state.get("nurse_notes"),
             "nearby_facilities": final_state.get("nearby_facilities", []),
             "hospital_recommendations": final_state.get("hospital_recommendations", []),
             "location_address": final_state.get("location_address"),
