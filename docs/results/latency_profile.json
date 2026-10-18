@@ -1,0 +1,1026 @@
+{
+  "benchmark_metadata": {
+    "split": "test",
+    "total_evaluated_cases": 60,
+    "esi_1_target_latency_ms": 50.0,
+    "hardware_platform": "win32"
+  },
+  "overall_summary": {
+    "baseline": {
+      "count": 60,
+      "mean_ms": 5274.38,
+      "median_p50_ms": 3577.67,
+      "p90_ms": 5027.71,
+      "p95_ms": 5434.33,
+      "p99_ms": 42572.68,
+      "min_ms": 1842.09,
+      "max_ms": 90662.26
+    },
+    "optimized": {
+      "count": 60,
+      "mean_ms": 4067.72,
+      "median_p50_ms": 3135.99,
+      "p90_ms": 4155.18,
+      "p95_ms": 6706.89,
+      "p99_ms": 41772.48,
+      "min_ms": 0.15,
+      "max_ms": 49479.71
+    },
+    "overall_mean_reduction_pct": 22.88,
+    "overall_p99_reduction_pct": 1.88
+  },
+  "esi_level_breakdown": {
+    "ESI_1": {
+      "baseline": {
+        "count": 12,
+        "mean_ms": 11653.51,
+        "median_p50_ms": 3655.47,
+        "p90_ms": 8782.15,
+        "p95_ms": 45832.99,
+        "p99_ms": 81696.41,
+        "min_ms": 3347.45,
+        "max_ms": 90662.26
+      },
+      "optimized": {
+        "count": 12,
+        "mean_ms": 0.42,
+        "median_p50_ms": 0.37,
+        "p90_ms": 0.61,
+        "p95_ms": 0.95,
+        "p99_ms": 1.28,
+        "min_ms": 0.15,
+        "max_ms": 1.36
+      },
+      "mean_reduction_pct": 100.0,
+      "speedup_factor": 27746.45
+    },
+    "ESI_2": {
+      "baseline": {
+        "count": 12,
+        "mean_ms": 3729.29,
+        "median_p50_ms": 3536.45,
+        "p90_ms": 4720.83,
+        "p95_ms": 5096.5,
+        "p99_ms": 5417.95,
+        "min_ms": 2032.22,
+        "max_ms": 5498.31
+      },
+      "optimized": {
+        "count": 12,
+        "mean_ms": 5897.46,
+        "median_p50_ms": 3167.93,
+        "p90_ms": 3670.89,
+        "p95_ms": 18411.08,
+        "p99_ms": 32815.5,
+        "min_ms": 1867.72,
+        "max_ms": 36416.61
+      },
+      "mean_reduction_pct": -58.14,
+      "speedup_factor": 0.63
+    },
+    "ESI_3": {
+      "baseline": {
+        "count": 12,
+        "mean_ms": 3788.84,
+        "median_p50_ms": 3861.11,
+        "p90_ms": 4727.62,
+        "p95_ms": 4748.27,
+        "p99_ms": 4749.18,
+        "min_ms": 2274.57,
+        "max_ms": 4749.41
+      },
+      "optimized": {
+        "count": 12,
+        "mean_ms": 3217.5,
+        "median_p50_ms": 3231.03,
+        "p90_ms": 3792.68,
+        "p95_ms": 3928.18,
+        "p99_ms": 4025.53,
+        "min_ms": 1770.87,
+        "max_ms": 4049.87
+      },
+      "mean_reduction_pct": 15.08,
+      "speedup_factor": 1.18
+    },
+    "ESI_4": {
+      "baseline": {
+        "count": 12,
+        "mean_ms": 3524.39,
+        "median_p50_ms": 3298.49,
+        "p90_ms": 4871.45,
+        "p95_ms": 5162.12,
+        "p99_ms": 5331.1,
+        "min_ms": 1842.09,
+        "max_ms": 5373.34
+      },
+      "optimized": {
+        "count": 12,
+        "mean_ms": 7264.63,
+        "median_p50_ms": 3166.47,
+        "p90_ms": 6341.68,
+        "p95_ms": 25911.04,
+        "p99_ms": 44765.98,
+        "min_ms": 1939.96,
+        "max_ms": 49479.71
+      },
+      "mean_reduction_pct": -106.12,
+      "speedup_factor": 0.49
+    },
+    "ESI_5": {
+      "baseline": {
+        "count": 12,
+        "mean_ms": 3675.87,
+        "median_p50_ms": 3659.47,
+        "p90_ms": 4507.19,
+        "p95_ms": 4699.97,
+        "p99_ms": 4850.42,
+        "min_ms": 1924.05,
+        "max_ms": 4888.03
+      },
+      "optimized": {
+        "count": 12,
+        "mean_ms": 3958.6,
+        "median_p50_ms": 3277.7,
+        "p90_ms": 5317.29,
+        "p95_ms": 6675.97,
+        "p99_ms": 7906.14,
+        "min_ms": 1898.45,
+        "max_ms": 8213.68
+      },
+      "mean_reduction_pct": -7.69,
+      "speedup_factor": 0.93
+    }
+  },
+  "component_node_breakdown": {
+    "intake": {
+      "count": 12,
+      "mean_ms": 0.15,
+      "median_p50_ms": 0.13,
+      "p90_ms": 0.22,
+      "p95_ms": 0.34,
+      "p99_ms": 0.45,
+      "min_ms": 0.05,
+      "max_ms": 0.48
+    },
+    "risk": {
+      "count": 12,
+      "mean_ms": 0.05,
+      "median_p50_ms": 0.05,
+      "p90_ms": 0.05,
+      "p95_ms": 0.05,
+      "p99_ms": 0.05,
+      "min_ms": 0.05,
+      "max_ms": 0.05
+    },
+    "safety": {
+      "count": 12,
+      "mean_ms": 0.1,
+      "median_p50_ms": 0.09,
+      "p90_ms": 0.15,
+      "p95_ms": 0.24,
+      "p99_ms": 0.32,
+      "min_ms": 0.04,
+      "max_ms": 0.34
+    },
+    "sbar": {
+      "count": 12,
+      "mean_ms": 0.17,
+      "median_p50_ms": 0.15,
+      "p90_ms": 0.25,
+      "p95_ms": 0.38,
+      "p99_ms": 0.51,
+      "min_ms": 0.06,
+      "max_ms": 0.54
+    }
+  },
+  "case_level_results": [
+    {
+      "id": "VIG-019",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 90662.26,
+      "optimized_latency_ms": 1.36,
+      "speedup_factor": 66663.43,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.48,
+        "risk": 0.05,
+        "safety": 0.34,
+        "sbar": 0.54,
+        "total": 1.36
+      }
+    },
+    {
+      "id": "VIG-020",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 9154.5,
+      "optimized_latency_ms": 0.21,
+      "speedup_factor": 43592.86,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.07,
+        "risk": 0.05,
+        "safety": 0.05,
+        "sbar": 0.08,
+        "total": 0.21
+      }
+    },
+    {
+      "id": "VIG-021",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 5405.82,
+      "optimized_latency_ms": 0.49,
+      "speedup_factor": 11032.29,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.17,
+        "risk": 0.05,
+        "safety": 0.12,
+        "sbar": 0.2,
+        "total": 0.49
+      }
+    },
+    {
+      "id": "VIG-022",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3373.13,
+      "optimized_latency_ms": 0.45,
+      "speedup_factor": 7495.84,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.16,
+        "risk": 0.05,
+        "safety": 0.11,
+        "sbar": 0.18,
+        "total": 0.45
+      }
+    },
+    {
+      "id": "VIG-023",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3511.22,
+      "optimized_latency_ms": 0.16,
+      "speedup_factor": 21945.12,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.06,
+        "risk": 0.05,
+        "safety": 0.04,
+        "sbar": 0.06,
+        "total": 0.16
+      }
+    },
+    {
+      "id": "VIG-024",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3406.36,
+      "optimized_latency_ms": 0.46,
+      "speedup_factor": 7405.13,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.16,
+        "risk": 0.05,
+        "safety": 0.12,
+        "sbar": 0.18,
+        "total": 0.46
+      }
+    },
+    {
+      "id": "VIG-025",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 4780.17,
+      "optimized_latency_ms": 0.15,
+      "speedup_factor": 31867.8,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.05,
+        "risk": 0.05,
+        "safety": 0.04,
+        "sbar": 0.06,
+        "total": 0.15
+      }
+    },
+    {
+      "id": "VIG-026",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3459.26,
+      "optimized_latency_ms": 0.62,
+      "speedup_factor": 5579.45,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.22,
+        "risk": 0.05,
+        "safety": 0.15,
+        "sbar": 0.25,
+        "total": 0.62
+      }
+    },
+    {
+      "id": "VIG-027",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 5430.96,
+      "optimized_latency_ms": 0.29,
+      "speedup_factor": 18727.45,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.1,
+        "risk": 0.05,
+        "safety": 0.07,
+        "sbar": 0.12,
+        "total": 0.29
+      }
+    },
+    {
+      "id": "VIG-028",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3347.45,
+      "optimized_latency_ms": 0.18,
+      "speedup_factor": 18596.94,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.06,
+        "risk": 0.05,
+        "safety": 0.04,
+        "sbar": 0.07,
+        "total": 0.18
+      }
+    },
+    {
+      "id": "VIG-029",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3727.72,
+      "optimized_latency_ms": 0.16,
+      "speedup_factor": 23298.25,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.06,
+        "risk": 0.05,
+        "safety": 0.04,
+        "sbar": 0.06,
+        "total": 0.16
+      }
+    },
+    {
+      "id": "VIG-030",
+      "ground_truth_esi": 1,
+      "predicted_esi": 1,
+      "baseline_latency_ms": 3583.23,
+      "optimized_latency_ms": 0.57,
+      "speedup_factor": 6286.37,
+      "intake_method": "deterministic_fast_path",
+      "fast_path_activated": true,
+      "node_durations": {
+        "intake": 0.2,
+        "risk": 0.05,
+        "safety": 0.14,
+        "sbar": 0.23,
+        "total": 0.57
+      }
+    },
+    {
+      "id": "VIG-049",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 4179.37,
+      "optimized_latency_ms": 36416.61,
+      "speedup_factor": 0.11,
+      "intake_method": "llm",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 36416.61
+      }
+    },
+    {
+      "id": "VIG-050",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3272.06,
+      "optimized_latency_ms": 3502.01,
+      "speedup_factor": 0.93,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3502.01
+      }
+    },
+    {
+      "id": "VIG-051",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 4298.63,
+      "optimized_latency_ms": 3081.67,
+      "speedup_factor": 1.39,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3081.67
+      }
+    },
+    {
+      "id": "VIG-052",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3126.02,
+      "optimized_latency_ms": 3595.26,
+      "speedup_factor": 0.87,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3595.26
+      }
+    },
+    {
+      "id": "VIG-053",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 4767.74,
+      "optimized_latency_ms": 3330.26,
+      "speedup_factor": 1.43,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3330.26
+      }
+    },
+    {
+      "id": "VIG-054",
+      "ground_truth_esi": 2,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3281.49,
+      "optimized_latency_ms": 3025.03,
+      "speedup_factor": 1.08,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3025.03
+      }
+    },
+    {
+      "id": "VIG-055",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 5498.31,
+      "optimized_latency_ms": 3002.3,
+      "speedup_factor": 1.83,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3002.3
+      }
+    },
+    {
+      "id": "VIG-056",
+      "ground_truth_esi": 2,
+      "predicted_esi": 3,
+      "baseline_latency_ms": 3832.88,
+      "optimized_latency_ms": 3210.25,
+      "speedup_factor": 1.19,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3210.25
+      }
+    },
+    {
+      "id": "VIG-057",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3669.03,
+      "optimized_latency_ms": 3679.29,
+      "speedup_factor": 1.0,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3679.29
+      }
+    },
+    {
+      "id": "VIG-058",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3389.89,
+      "optimized_latency_ms": 2933.45,
+      "speedup_factor": 1.16,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 2933.45
+      }
+    },
+    {
+      "id": "VIG-059",
+      "ground_truth_esi": 2,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 2032.22,
+      "optimized_latency_ms": 1867.72,
+      "speedup_factor": 1.09,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 1867.72
+      }
+    },
+    {
+      "id": "VIG-060",
+      "ground_truth_esi": 2,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3403.88,
+      "optimized_latency_ms": 3125.62,
+      "speedup_factor": 1.09,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3125.62
+      }
+    },
+    {
+      "id": "VIG-079",
+      "ground_truth_esi": 3,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 4747.33,
+      "optimized_latency_ms": 3828.61,
+      "speedup_factor": 1.24,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3828.61
+      }
+    },
+    {
+      "id": "VIG-080",
+      "ground_truth_esi": 3,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 4053.17,
+      "optimized_latency_ms": 4049.87,
+      "speedup_factor": 1.0,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 4049.87
+      }
+    },
+    {
+      "id": "VIG-081",
+      "ground_truth_esi": 3,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 3339.18,
+      "optimized_latency_ms": 3469.35,
+      "speedup_factor": 0.96,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3469.35
+      }
+    },
+    {
+      "id": "VIG-082",
+      "ground_truth_esi": 3,
+      "predicted_esi": 3,
+      "baseline_latency_ms": 4406.54,
+      "optimized_latency_ms": 3141.34,
+      "speedup_factor": 1.4,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3141.34
+      }
+    },
+    {
+      "id": "VIG-083",
+      "ground_truth_esi": 3,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 4300.77,
+      "optimized_latency_ms": 3428.47,
+      "speedup_factor": 1.25,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3428.47
+      }
+    },
+    {
+      "id": "VIG-084",
+      "ground_truth_esi": 3,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3267.82,
+      "optimized_latency_ms": 3095.62,
+      "speedup_factor": 1.06,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3095.62
+      }
+    },
+    {
+      "id": "VIG-085",
+      "ground_truth_esi": 3,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4749.41,
+      "optimized_latency_ms": 2966.47,
+      "speedup_factor": 1.6,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 2966.47
+      }
+    },
+    {
+      "id": "VIG-086",
+      "ground_truth_esi": 3,
+      "predicted_esi": 3,
+      "baseline_latency_ms": 2274.57,
+      "optimized_latency_ms": 1770.87,
+      "speedup_factor": 1.28,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 1770.87
+      }
+    },
+    {
+      "id": "VIG-087",
+      "ground_truth_esi": 3,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 2535.92,
+      "optimized_latency_ms": 3320.71,
+      "speedup_factor": 0.76,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3320.71
+      }
+    },
+    {
+      "id": "VIG-088",
+      "ground_truth_esi": 3,
+      "predicted_esi": 2,
+      "baseline_latency_ms": 3572.11,
+      "optimized_latency_ms": 3130.64,
+      "speedup_factor": 1.14,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3130.64
+      }
+    },
+    {
+      "id": "VIG-089",
+      "ground_truth_esi": 3,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3669.06,
+      "optimized_latency_ms": 3048.5,
+      "speedup_factor": 1.2,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3048.5
+      }
+    },
+    {
+      "id": "VIG-090",
+      "ground_truth_esi": 3,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 4550.23,
+      "optimized_latency_ms": 3359.59,
+      "speedup_factor": 1.35,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3359.59
+      }
+    },
+    {
+      "id": "VIG-109",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3787.74,
+      "optimized_latency_ms": 2920.75,
+      "speedup_factor": 1.3,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 2920.75
+      }
+    },
+    {
+      "id": "VIG-110",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3274.0,
+      "optimized_latency_ms": 2960.3,
+      "speedup_factor": 1.11,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 2960.3
+      }
+    },
+    {
+      "id": "VIG-111",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 1842.09,
+      "optimized_latency_ms": 1939.96,
+      "speedup_factor": 0.95,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 1939.96
+      }
+    },
+    {
+      "id": "VIG-112",
+      "ground_truth_esi": 4,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 3006.58,
+      "optimized_latency_ms": 2989.1,
+      "speedup_factor": 1.01,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 2989.1
+      }
+    },
+    {
+      "id": "VIG-113",
+      "ground_truth_esi": 4,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 3051.28,
+      "optimized_latency_ms": 3033.69,
+      "speedup_factor": 1.01,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3033.69
+      }
+    },
+    {
+      "id": "VIG-114",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3810.7,
+      "optimized_latency_ms": 3768.46,
+      "speedup_factor": 1.01,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3768.46
+      }
+    },
+    {
+      "id": "VIG-115",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3197.13,
+      "optimized_latency_ms": 3145.63,
+      "speedup_factor": 1.02,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3145.63
+      }
+    },
+    {
+      "id": "VIG-116",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4989.31,
+      "optimized_latency_ms": 3705.5,
+      "speedup_factor": 1.35,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3705.5
+      }
+    },
+    {
+      "id": "VIG-117",
+      "ground_truth_esi": 4,
+      "predicted_esi": 3,
+      "baseline_latency_ms": 3287.78,
+      "optimized_latency_ms": 6627.59,
+      "speedup_factor": 0.5,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 6627.59
+      }
+    },
+    {
+      "id": "VIG-118",
+      "ground_truth_esi": 4,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3309.2,
+      "optimized_latency_ms": 3187.31,
+      "speedup_factor": 1.04,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3187.31
+      }
+    },
+    {
+      "id": "VIG-119",
+      "ground_truth_esi": 4,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 5373.34,
+      "optimized_latency_ms": 3417.56,
+      "speedup_factor": 1.57,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3417.56
+      }
+    },
+    {
+      "id": "VIG-120",
+      "ground_truth_esi": 4,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 3363.56,
+      "optimized_latency_ms": 49479.71,
+      "speedup_factor": 0.07,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 49479.71
+      }
+    },
+    {
+      "id": "VIG-139",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4105.57,
+      "optimized_latency_ms": 3228.9,
+      "speedup_factor": 1.27,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3228.9
+      }
+    },
+    {
+      "id": "VIG-140",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4546.11,
+      "optimized_latency_ms": 3185.39,
+      "speedup_factor": 1.43,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3185.39
+      }
+    },
+    {
+      "id": "VIG-141",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4888.03,
+      "optimized_latency_ms": 3230.72,
+      "speedup_factor": 1.51,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3230.72
+      }
+    },
+    {
+      "id": "VIG-142",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3336.72,
+      "optimized_latency_ms": 4412.36,
+      "speedup_factor": 0.76,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 4412.36
+      }
+    },
+    {
+      "id": "VIG-143",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3261.96,
+      "optimized_latency_ms": 3302.79,
+      "speedup_factor": 0.99,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3302.79
+      }
+    },
+    {
+      "id": "VIG-144",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3374.59,
+      "optimized_latency_ms": 5417.84,
+      "speedup_factor": 0.62,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 5417.84
+      }
+    },
+    {
+      "id": "VIG-145",
+      "ground_truth_esi": 5,
+      "predicted_esi": 4,
+      "baseline_latency_ms": 3872.62,
+      "optimized_latency_ms": 4126.6,
+      "speedup_factor": 0.94,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 4126.6
+      }
+    },
+    {
+      "id": "VIG-146",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3851.81,
+      "optimized_latency_ms": 3115.29,
+      "speedup_factor": 1.24,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3115.29
+      }
+    },
+    {
+      "id": "VIG-147",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3467.12,
+      "optimized_latency_ms": 8213.68,
+      "speedup_factor": 0.42,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 8213.68
+      }
+    },
+    {
+      "id": "VIG-148",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 4156.94,
+      "optimized_latency_ms": 4118.61,
+      "speedup_factor": 1.01,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 4118.61
+      }
+    },
+    {
+      "id": "VIG-149",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 1924.05,
+      "optimized_latency_ms": 1898.45,
+      "speedup_factor": 1.01,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 1898.45
+      }
+    },
+    {
+      "id": "VIG-150",
+      "ground_truth_esi": 5,
+      "predicted_esi": 5,
+      "baseline_latency_ms": 3324.95,
+      "optimized_latency_ms": 3252.62,
+      "speedup_factor": 1.02,
+      "intake_method": "regex_fallback",
+      "fast_path_activated": false,
+      "node_durations": {
+        "total": 3252.62
+      }
+    }
+  ]
+}

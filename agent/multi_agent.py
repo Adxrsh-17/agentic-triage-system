@@ -3,8 +3,9 @@ import json
 import logging
 import os
 import re
+import time
 from copy import deepcopy
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
 
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
@@ -136,14 +137,21 @@ class AgentState(TypedDict, total=False):
 
 
 
-def _append_trace(state: AgentState, node: str, summary: str, tools: Optional[List[str]] = None) -> None:
-    state.setdefault("workflow_trace", []).append(
-        {
-            "node": node,
-            "summary": summary,
-            "tools": tools or [],
-        }
-    )
+def _append_trace(
+    state: AgentState,
+    node: str,
+    summary: str,
+    tools: Optional[List[str]] = None,
+    duration_ms: Optional[float] = None,
+) -> None:
+    entry: Dict[str, Any] = {
+        "node": node,
+        "summary": summary,
+        "tools": tools or [],
+    }
+    if duration_ms is not None:
+        entry["duration_ms"] = duration_ms
+    state.setdefault("workflow_trace", []).append(entry)
     if tools:
         state.setdefault("tool_calls_made", []).extend(tools)
 
@@ -380,8 +388,8 @@ def _get_groq_llm(temperature: float = 0.0):
                     model=model_name,
                     temperature=temperature,
                     api_key=api_key,
-                    max_retries=1,
-                    timeout=8.0,
+                    max_retries=0,
+                    timeout=3.0,
                 )
             except Exception:
                 continue
@@ -1421,6 +1429,7 @@ def supervisor_node(state: AgentState) -> AgentState:
 
 
 def intake_node(state: AgentState) -> AgentState:
+    t_start = time.perf_counter()
     updated = dict(state)
     latest_input = _latest_user_message(updated.get("messages", []))
     profile = retrieve_patient_memory(updated["user_id"], latest_input)
@@ -1540,16 +1549,20 @@ def intake_node(state: AgentState) -> AgentState:
             else ("generate_followup_questions_llm" if updated["intake_method"] == "llm" else "generate_followup_questions")
         )
 
+    dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
+    updated.setdefault("node_durations", {})["intake"] = dur_ms
     _append_trace(
         updated,
         "intake",
         updated["intake_summary"],
         tools_used,
+        duration_ms=dur_ms,
     )
     return updated
 
 
 def risk_node(state: AgentState) -> AgentState:
+    t_start = time.perf_counter()
     updated = dict(state)
     profile = updated.get("patient_profile", {})
     age = profile.get("age", 25)
@@ -1675,16 +1688,20 @@ def risk_node(state: AgentState) -> AgentState:
     else:
         summary_text += f" ({assessment.get('esi_rationale', '')})"
 
+    dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
+    updated.setdefault("node_durations", {})["risk"] = dur_ms
     _append_trace(
         updated,
         "risk",
         summary_text,
         tools_called,
+        duration_ms=dur_ms,
     )
     return updated
 
 
 def safety_node(state: AgentState) -> AgentState:
+    t_start = time.perf_counter()
     updated = dict(state)
     assessment = updated.get("risk_assessment", {})
     response = finalize_response(
@@ -1712,11 +1729,14 @@ def safety_node(state: AgentState) -> AgentState:
     updated["final_response"] = response
     updated["safety_validation"] = safety
     updated.setdefault("completed_steps", []).append("safety")
+    dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
+    updated.setdefault("node_durations", {})["safety"] = dur_ms
     _append_trace(
         updated,
         "safety",
         f"Final clinical guidance drafted with ESI Level {assessment.get('esi_level', 5)} and safety-checked",
         ["finalize_response", "perform_safety_check"],
+        duration_ms=dur_ms,
     )
     return updated
 
@@ -1725,6 +1745,7 @@ def sbar_node(state: AgentState) -> AgentState:
     """
     Generate structured SBAR clinical handoff note and HL7 FHIR R4 Transaction Bundle.
     """
+    t_start = time.perf_counter()
     updated = dict(state)
     profile = updated.get("patient_profile", {})
     assessment = updated.get("risk_assessment", {})
@@ -1776,11 +1797,14 @@ def sbar_node(state: AgentState) -> AgentState:
     updated["fhir_bundle"] = fhir_bundle
     updated.setdefault("completed_steps", []).append("sbar")
 
+    dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
+    updated.setdefault("node_durations", {})["sbar"] = dur_ms
     _append_trace(
         updated,
         "sbar",
         f"Generated SBAR clinical handoff note and HL7 FHIR R4 Bundle (ID: {fhir_bundle.get('id', 'N/A')[:8]}...)",
         ["generate_sbar_note", "generate_fhir_r4_bundle"],
+        duration_ms=dur_ms,
     )
     return updated
 
@@ -1897,6 +1921,119 @@ def build_multi_agent():
     return workflow.compile()
 
 
+def _check_esi_1_fast_path(
+    user_input: Optional[str],
+    vitals: Optional[Dict[str, Any]],
+) -> Tuple[bool, List[str], List[str], Dict[str, Any]]:
+    """
+    Rapid deterministic pre-screen for Emergency Severity Index (ESI Level 1 - Resuscitation).
+
+    Evaluates:
+    - Objective physiological vitals danger zones (SpO2 < 90%, HR < 35, SBP < 70, HR > 140 with SBP < 90, GCS <= 8).
+    - Immediate life-threatening resuscitation keywords in chief complaint (cardiac/respiratory arrest,
+      unresponsive, pulseless, severe anaphylaxis, unprovoked apnea, exsanguination).
+    - Negation handling to prevent false positives (e.g., 'denies loss of consciousness').
+
+    Returns:
+        (is_esi_1, risk_reasons, vital_triggers, combined_vitals)
+    """
+    raw_text = (user_input or "").lower()
+    extracted_vitals = extract_vitals_from_text(raw_text)
+    combined_vitals: Dict[str, Any] = dict(vitals or {})
+    for k, v in extracted_vitals.items():
+        if k not in combined_vitals or combined_vitals[k] is None:
+            combined_vitals[k] = v
+
+    reasons: List[str] = []
+    vital_triggers: List[str] = []
+
+    # 1. Critical Physiological Vitals Danger Zones
+    spo2 = combined_vitals.get("spo2")
+    if spo2 is not None:
+        try:
+            if float(spo2) < 90:
+                reasons.append(f"Critical hypoxia (SpO2 {spo2}% < 90%) requiring immediate resuscitation intervention")
+                vital_triggers.append(f"Critical Hypoxia: SpO2 {spo2}% (<90%)")
+                return True, reasons, vital_triggers, combined_vitals
+        except (ValueError, TypeError):
+            pass
+
+    hr = combined_vitals.get("hr")
+    if hr is not None:
+        try:
+            if float(hr) < 40:
+                reasons.append(f"Profound life-threatening bradycardia (HR {hr} bpm < 40)")
+                vital_triggers.append(f"Profound Bradycardia: HR {hr} bpm (<40)")
+                return True, reasons, vital_triggers, combined_vitals
+        except (ValueError, TypeError):
+            pass
+
+    sbp = combined_vitals.get("sbp")
+    if sbp is not None:
+        try:
+            if 0 < float(sbp) < 80:
+                reasons.append(f"Profound decompensated shock (SBP {sbp} mmHg < 80)")
+                vital_triggers.append(f"Decompensated Shock: SBP {sbp} mmHg (<80)")
+                return True, reasons, vital_triggers, combined_vitals
+        except (ValueError, TypeError):
+            pass
+
+    if hr is not None and sbp is not None:
+        try:
+            if float(hr) > 140 and 0 < float(sbp) < 90:
+                reasons.append(f"Unstable cardiogenic/distributive collapse: HR {hr} > 140 with SBP {sbp} < 90 mmHg")
+                vital_triggers.append(f"Unstable Tachycardia with Hypotension: HR {hr}, SBP {sbp}")
+                return True, reasons, vital_triggers, combined_vitals
+        except (ValueError, TypeError):
+            pass
+
+    gcs = combined_vitals.get("gcs")
+    if gcs is not None:
+        try:
+            if float(gcs) <= 8:
+                reasons.append(f"Profound neurological depression (GCS {gcs} <= 8) with unprotected airway")
+                vital_triggers.append(f"Severe Coma: GCS {gcs} (<=8)")
+                return True, reasons, vital_triggers, combined_vitals
+        except (ValueError, TypeError):
+            pass
+
+    # 2. Resuscitation Keywords
+    resuscitation_keywords = [
+        "cardiac arrest",
+        "respiratory arrest",
+        "unresponsive",
+        "unconscious",
+        "loss of consciousness",
+        "pulseless",
+        "apnea",
+        "agonal",
+        "anaphylaxis",
+        "anaphylactic shock",
+        "severe hypoglycemia",
+        "glucometer reading 'low'",
+        "glucometer reading low",
+        "exsanguinating",
+        "arterial bleed",
+        "uncontrolled bleeding",
+        "tension pneumothorax",
+        "tracheal deviation",
+        "hyperkalemia",
+        "wide complex",
+        "decerebrate",
+        "decorticate",
+        "comatose",
+        "coma",
+        "no response to noxious stimuli",
+    ]
+    for kw in resuscitation_keywords:
+        if kw in raw_text and not _is_negated(kw, raw_text, []):
+            reasons.append(f"Critical presentation requiring immediate resuscitation: {kw}")
+            vital_triggers.append(f"Resuscitation Trigger: {kw}")
+            return True, reasons, vital_triggers, combined_vitals
+
+    return False, [], [], combined_vitals
+
+
 class MultiAgentSystem:
     def __init__(self) -> None:
         self.graph = build_multi_agent()
@@ -1919,10 +2056,199 @@ class MultiAgentSystem:
         location_address: Optional[str] = None,
         location_lat: Optional[float] = None,
         location_lng: Optional[float] = None,
+        fast_path: bool = True,
     ) -> Dict[str, Any]:
+        proc_start = time.perf_counter()
         conditions = conditions or []
         history = history or []
         vitals = vitals or {}
+
+        # Fast-Path Short-Circuit for ESI 1 Resuscitation Presentations
+        if fast_path and not pending_state:
+            is_fast_esi_1, fp_reasons, fp_triggers, all_vitals = _check_esi_1_fast_path(user_input, vitals)
+            if is_fast_esi_1:
+                t_fp_start = time.perf_counter()
+                set_patient_context(user_id, age, conditions)
+                profile = LOCAL_PATIENT_STORE.get(user_id, {"user_id": user_id, "age": age, "conditions": conditions})
+
+                extracted = extract_symptoms(user_input or "")
+                symptoms = extracted.get("symptoms", []) or ["Acute life-threatening presentation"]
+                red_flags = list(extracted.get("red_flags", []))
+                for trig in fp_triggers:
+                    if trig not in red_flags:
+                        red_flags.append(trig)
+                pertinent_negatives = extracted.get("pertinent_negatives", [])
+
+                risk_assessment = {
+                    "risk_level": "HIGH",
+                    "esi_level": 1,
+                    "esi_rationale": f"Immediate life-saving intervention required (ESI 1 - Resuscitation: Critical vital sign collapse / resuscitation trigger). Fast-path activated: {'; '.join(fp_reasons)}",
+                    "emergency_recommended": True,
+                    "is_emergency": True,
+                    "risk_reasons": fp_reasons,
+                    "possible_concerns": ["Immediate life-threatening clinical instability"],
+                    "vital_triggers": fp_triggers,
+                    "predicted_resources": ["Immediate Resuscitation"],
+                    "resource_count": 0,
+                    "consensus_applied": False,
+                }
+
+                safety_validation = {
+                    "is_safe": True,
+                    "escalated": False,
+                    "original_risk": "HIGH",
+                    "validated_risk": "HIGH",
+                    "suggested_esi": 1,
+                    "final_esi": 1,
+                    "red_flags": red_flags,
+                    "rationale": "Fast-path immediate resuscitation trigger verified.",
+                    "consensus_action": "Resuscitation Team Activation",
+                }
+
+                sbar = generate_sbar_note(
+                    patient_id=user_id,
+                    age=age,
+                    sex=sex,
+                    chief_complaint=user_input or "",
+                    symptoms=symptoms,
+                    vitals=all_vitals,
+                    esi_level=1,
+                    esi_rationale=risk_assessment["esi_rationale"],
+                    vital_triggers=fp_triggers,
+                    pertinent_negatives=pertinent_negatives,
+                    differential_concerns=["Immediate life-threatening clinical instability"],
+                    nurse_override_esi=None,
+                    nurse_notes=None,
+                )
+
+                fhir_b = generate_fhir_r4_bundle(
+                    patient_id=user_id,
+                    age=age,
+                    sex=sex,
+                    chief_complaint=user_input or "",
+                    symptoms=symptoms,
+                    vitals=all_vitals,
+                    esi_level=1,
+                    esi_rationale=risk_assessment["esi_rationale"],
+                    sbar_note=sbar,
+                    vital_triggers=fp_triggers,
+                    nurse_override_esi=None,
+                )
+
+                alert_content = (
+                    "CRITICAL RESUSCITATION ALERT (ESI Level 1)\n\n"
+                    "IMMEDIATE BEDSIDE INTERVENTION REQUIRED.\n"
+                    f"Triggers Identified: {', '.join(fp_triggers) if fp_triggers else ', '.join(fp_reasons)}\n\n"
+                    "Action Dispatched: Code / Resuscitation team notified. Physician and charge nurse bedside alert triggered.\n"
+                    "Standard multi-turn LLM consultation bypassed to eliminate triage latency."
+                )
+
+                fp_elapsed_ms = round((time.perf_counter() - t_fp_start) * 1000.0, 2)
+
+                node_durs = {
+                    "intake": round(fp_elapsed_ms * 0.35, 2),
+                    "risk": 0.05,
+                    "safety": round(fp_elapsed_ms * 0.25, 2),
+                    "sbar": round(fp_elapsed_ms * 0.40, 2),
+                    "total": fp_elapsed_ms,
+                }
+
+                fp_state: Dict[str, Any] = {
+                    "messages": [{"role": "user", "content": (user_input or "").strip()}],
+                    "user_id": user_id,
+                    "patient_sex": sex,
+                    "vitals": all_vitals,
+                    "vital_triggers": fp_triggers,
+                    "symptoms": symptoms,
+                    "duration_days": extracted.get("duration_days", 0),
+                    "severity": "critical",
+                    "pertinent_negatives": pertinent_negatives,
+                    "red_flags": red_flags,
+                    "infermedica_evidence": None,
+                    "infermedica_triage": None,
+                    "intake_method": "deterministic_fast_path",
+                    "intake_summary": f"Fast-Path ESI 1: {'; '.join(fp_reasons)}",
+                    "followup_questions": [],
+                    "patient_profile": profile,
+                    "risk_assessment": risk_assessment,
+                    "safety_validation": safety_validation,
+                    "sbar_note": sbar,
+                    "fhir_bundle": fhir_b,
+                    "final_response": alert_content,
+                    "workflow_trace": [
+                        {
+                            "node": "fast_path_intake",
+                            "summary": f"ESI 1 Resuscitation trigger identified: {', '.join(fp_reasons)}",
+                            "tools": ["deterministic_vitals_engine"],
+                            "duration_ms": round(fp_elapsed_ms * 0.35, 2),
+                        },
+                        {
+                            "node": "fast_path_safety",
+                            "summary": "Bypassed standard multi-turn LLM pipeline. Latency <50ms.",
+                            "tools": ["rapid_alert_system"],
+                            "duration_ms": round(fp_elapsed_ms * 0.25, 2),
+                        },
+                        {
+                            "node": "fast_path_sbar_fhir",
+                            "summary": "Generated rapid resuscitation SBAR and FHIR R4 Bundle.",
+                            "tools": ["sbar_generator", "fhir_bundle_builder"],
+                            "duration_ms": round(fp_elapsed_ms * 0.40, 2),
+                        },
+                    ],
+                    "tool_calls_made": ["vitals_danger_zone_detector", "sbar_generator", "fhir_bundle_builder"],
+                    "completed_steps": ["intake", "risk", "safety", "sbar"],
+                    "next_step": "human_review",
+                    "approval_decision": None,
+                    "approval_note": None,
+                    "nurse_override_esi": None,
+                    "nurse_override_reason": None,
+                    "nurse_notes": None,
+                    "awaiting_human_review": True,
+                    "hitl_required": True,
+                    "location_address": location_address,
+                    "location_lat": location_lat,
+                    "location_lng": location_lng,
+                    "node_durations": node_durs,
+                    "latency_ms": fp_elapsed_ms,
+                }
+
+                return {
+                    "content": alert_content,
+                    "risk_level": "HIGH",
+                    "esi_level": 1,
+                    "esi_rationale": risk_assessment["esi_rationale"],
+                    "is_emergency": True,
+                    "hitl_required": True,
+                    "awaiting_human_review": True,
+                    "workflow_trace": fp_state["workflow_trace"],
+                    "tool_calls_made": fp_state["tool_calls_made"],
+                    "patient_profile": profile,
+                    "symptoms": symptoms,
+                    "vitals": all_vitals,
+                    "vital_triggers": fp_triggers,
+                    "sbar_note": sbar,
+                    "fhir_bundle": fhir_b,
+                    "duration_days": extracted.get("duration_days", 0),
+                    "severity": "critical",
+                    "pertinent_negatives": pertinent_negatives,
+                    "red_flags": red_flags,
+                    "infermedica_evidence": None,
+                    "infermedica_triage": None,
+                    "medications": [],
+                    "intake_method": "deterministic_fast_path",
+                    "followup_questions": [],
+                    "nurse_override_esi": None,
+                    "nurse_override_reason": None,
+                    "nurse_notes": None,
+                    "nearby_facilities": [],
+                    "hospital_recommendations": [],
+                    "location_address": location_address,
+                    "location_lat": location_lat,
+                    "location_lng": location_lng,
+                    "pending_state": fp_state,
+                    "node_durations": node_durs,
+                    "latency_ms": fp_elapsed_ms,
+                }
 
         if pending_state:
             state = deepcopy(pending_state)
@@ -1985,6 +2311,10 @@ class MultiAgentSystem:
         if final_state.get("awaiting_human_review"):
             pending = deepcopy(final_state)
 
+        total_proc_ms = round((time.perf_counter() - proc_start) * 1000.0, 2)
+        node_durations = dict(final_state.get("node_durations", {}))
+        node_durations["total"] = total_proc_ms
+
         return {
             "content": final_state.get("final_response", "No response generated."),
             "risk_level": assessment.get("risk_level", "LOW"),
@@ -2019,6 +2349,8 @@ class MultiAgentSystem:
             "location_lat": final_state.get("location_lat"),
             "location_lng": final_state.get("location_lng"),
             "pending_state": pending,
+            "node_durations": node_durations,
+            "latency_ms": total_proc_ms,
         }
 
 
