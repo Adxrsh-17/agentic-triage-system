@@ -50,7 +50,7 @@ def _get_embedding_model():
 
             _EMBEDDING_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
             logger.info("Loaded sentence-transformers model 'all-MiniLM-L6-v2' (384-dim).")
-        except Exception as exc:
+        except BaseException as exc:
             logger.warning(
                 "sentence-transformers unavailable or model download failed, using fallback embeddings: %s",
                 exc,
@@ -498,11 +498,23 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
         "sore throat": ["sore throat", "throat pain"],
         "muscle pain": ["muscle pain", "body ache", "myalgia"],
         "joint pain": ["joint pain", "arthralgia"],
-        "confusion": ["confusion", "confused", "disoriented"],
+        "confusion": ["confusion", "confused", "disoriented", "altered mental status"],
         "fainting": ["fainting", "fainted", "passed out", "syncope"],
-        "loss of consciousness": ["loss of consciousness", "unconscious", "unresponsive"],
-        "rash": ["rash", "hives", "itchy skin"],
+        "loss of consciousness": ["loss of consciousness", "unconscious", "unresponsive", "comatose", "coma"],
+        "rash": ["rash", "hives", "itchy skin", "poison ivy", "diaper rash"],
         "swelling": ["swelling", "swollen", "edema"],
+        "dysuria": ["burning with urination", "painful urination", "urinary frequency", "dysuria", "burning urination"],
+        "extremity injury": ["twisted ankle", "ankle pain", "wrist pain", "finger injury", "toe injury", "foot pain", "bony tenderness", "suspected fracture", "sprained ankle", "fall on outstretched hand"],
+        "wound / laceration": ["laceration", "skin cut", "cut on finger", "needing stitches", "suture repair", "gash", "open cut"],
+        "subungual hematoma": ["subungual hematoma", "blood under nail", "slammed thumb", "slammed finger"],
+        "abscess": ["abscess", "boil", "fluctuant", "carbuncle", "i&d"],
+        "suture removal": ["suture removal", "remove stitches", "remove sutures", "take out stitches"],
+        "prescription refill": ["prescription refill", "medication refill", "refill", "ran out of medication", "ran out of pills"],
+        "wound check": ["wound check", "dressing change", "inspection of healed", "routine check", "healing well"],
+        "eye pain / foreign body": ["foreign body in eye", "metal in eye", "corneal abrasion", "eye irritation"],
+        "head trauma": ["hit head", "fell and hit head", "head injury", "contusion on forehead", "head strike"],
+        "vision loss": ["vision loss", "loss of vision", "cherry-red spot", "curtain fell", "blindness"],
+        "toxic ingestion": ["antifreeze", "ethylene glycol", "overdose", "toxic ingestion", "swallowed pills", "suicide", "suicidal"],
     }
 
     lowered = text.lower()
@@ -543,6 +555,17 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
         "vomiting blood",
         "anaphylaxis",
         "loss of consciousness",
+        "comatose",
+        "unresponsive",
+        "antifreeze",
+        "overdose",
+        "suicide",
+        "toxic ingestion",
+        "vision loss",
+        "crepitus",
+        "fournier",
+        "necrotizing",
+        "kehr",
     ]
     red_flags = [rf for rf in red_flag_patterns if rf in lowered]
 
@@ -682,6 +705,266 @@ def generate_followup_questions(symptoms: List[str]) -> Dict[str, Any]:
     return {"questions": deduped[:4], "needs_followup": True}
 
 
+def predict_expected_resources(
+    symptoms: List[str],
+    chief_complaint: str = "",
+    vitals: Optional[Dict[str, Any]] = None,
+    profile: Optional[Dict[str, Any]] = None,
+    severity: str = "unspecified",
+    duration: int = 0,
+) -> Dict[str, Any]:
+    """
+    Predict anticipated clinical resource consumption aligned with ESI v4 Implementation Handbook.
+
+    ESI Resource Definitions:
+    - 0 Resources -> ESI 5 (exam only, prescription refill, suture removal, minor rash, routine test-free care)
+    - 1 Resource  -> ESI 4 (plain X-ray, simple suture repair, urinalysis, swab/culture, single IM/IV med, trephination)
+    - >=2 Resources -> ESI 3 (labs + imaging, IV fluids + labs, CT + labs, splinting + X-ray, complex multi-system workup)
+    """
+    combined_text = f"{chief_complaint} {' '.join(symptoms)}".lower()
+    resources_identified: List[str] = []
+
+    # 1. Zero-resource clinical patterns (overrides inadvertent keyword triggers)
+    zero_resource_patterns = [
+        "suture removal",
+        "remove stitches",
+        "remove sutures",
+        "staple removal",
+        "prescription refill",
+        "medication refill",
+        "refill blood pressure",
+        "refill for",
+        "ran out of medication",
+        "ran out of pills",
+        "dressing change",
+        "wound check",
+        "inspection of healed",
+        "healing well",
+        "routine post-op",
+        "school note",
+        "work note",
+        "work clearance",
+        "dental referral",
+        "toothache",
+        "diaper rash",
+        "mild poison ivy",
+        "minor sunburn",
+    ]
+    is_explicit_zero_resource = any(pat in combined_text for pat in zero_resource_patterns)
+
+    # 2. Imaging resources
+    has_plain_xray = any(
+        kw in combined_text
+        for kw in [
+            "twisted ankle",
+            "ankle pain",
+            "bony tenderness",
+            "wrist pain",
+            "fall on outstretched hand",
+            "foosh",
+            "malleolus",
+            "finger injury",
+            "toe injury",
+            "foot pain",
+            "shoulder pain",
+            "knee pain after fall",
+            "suspected fracture",
+            "plain radiograph",
+            "x-ray",
+            "xray",
+        ]
+    )
+    has_advanced_imaging = any(
+        kw in combined_text
+        for kw in [
+            "abdominal pain",
+            "right lower quadrant",
+            "rlq",
+            "right upper quadrant",
+            "ruq",
+            "murphy sign",
+            "gallbladder",
+            "appendicitis",
+            "diverticulitis",
+            "pancreatitis",
+            "kidney stone",
+            "renal colic",
+            "flank pain",
+            "ct scan",
+            "ultrasound",
+            "sonogram",
+            "dvt",
+            "deep vein thrombosis",
+            "calf",
+            "head ct",
+            "warfarin",
+        ]
+    )
+
+    if has_advanced_imaging:
+        resources_identified.append("Diagnostic Imaging (CT Scan / Ultrasound)")
+    elif has_plain_xray and not is_explicit_zero_resource:
+        resources_identified.append("Plain Radiography (X-Ray)")
+
+    # 3. Laboratory resources
+    has_urinalysis = any(
+        kw in combined_text
+        for kw in [
+            "urination",
+            "dysuria",
+            "burning with urination",
+            "painful urination",
+            "urinary frequency",
+            "wants urine check",
+            "hematuria",
+            "urine check",
+        ]
+    )
+    has_blood_work = any(
+        kw in combined_text
+        for kw in [
+            "abdominal pain",
+            "jaundice",
+            "chills and rigors",
+            "vomiting and diarrhea",
+            "blood test",
+            "cbc",
+            "bmp",
+            "colitis",
+            "bloody bowel",
+            "bloody stool",
+            "hypoglycemia",
+            "d-dimer",
+            "lipase",
+            "inr",
+            "dark sputum",
+            "pneumonia",
+            "chemotherapy",
+            "lymphoma",
+        ]
+    )
+    has_swab_culture = any(
+        kw in combined_text
+        for kw in ["rapid strep", "throat culture", "tonsillar exudate", "wound drainage", "wound culture", "dark sputum"]
+    )
+
+    if has_blood_work:
+        resources_identified.append("Clinical Blood Laboratory Panel (CBC/BMP/LFTs)")
+    if has_urinalysis:
+        resources_identified.append("Diagnostic Urinalysis / Urine Dipstick")
+    if has_swab_culture:
+        resources_identified.append("Microbiology Swab / Point-of-Care Culture")
+
+    # 4. Parenteral / IV / IM Medications & Fluids
+    has_iv_fluids = any(
+        kw in combined_text
+        for kw in [
+            "intractable vomiting",
+            "unable to keep fluids down",
+            "severe dehydration",
+            "iv fluids",
+            "fluid hydration",
+        ]
+    )
+    has_parenteral_meds = any(
+        kw in combined_text
+        for kw in [
+            "pain shot",
+            "im injection",
+            "toradol shot",
+            "ketorolac",
+            "im pain",
+            "iv antibiotics",
+            "iv steroid",
+            "migraine shot",
+            "iv analgesia",
+        ]
+    )
+
+    if has_iv_fluids:
+        resources_identified.append("Intravenous Fluid Hydration")
+    if has_parenteral_meds:
+        resources_identified.append("Parenteral IM/IV Therapeutic Administration")
+
+    # 5. Specialized Procedures
+    has_wound_repair = any(
+        kw in combined_text
+        for kw in [
+            "laceration",
+            "skin cut",
+            "needing stitches",
+            "suture repair",
+            "staples",
+            "dermabond",
+            "gash",
+            "knife cut",
+            "wound closure",
+        ]
+    ) and not ("suture removal" in combined_text or "remove stitches" in combined_text)
+
+    has_trephination = any(
+        kw in combined_text
+        for kw in ["subungual hematoma", "blood under nail", "trephination", "slammed thumb"]
+    )
+    has_abscess_id = any(
+        kw in combined_text
+        for kw in ["abscess", "boil", "fluctuant", "carbuncle", "i&d", "drain abscess", "peritonsillar", "trismus"]
+    )
+    has_splinting = any(
+        kw in combined_text
+        for kw in ["deformity", "both-bone fracture", "dislocation", "splint", "unable to bear weight"]
+    )
+    has_eye_procedure = any(
+        kw in combined_text
+        for kw in ["foreign body in eye", "metal in eye", "corneal abrasion", "eye irrigation", "morgan lens"]
+    )
+
+    if has_wound_repair:
+        resources_identified.append("Simple Wound Closure (Suture / Dermabond)")
+    if has_trephination:
+        resources_identified.append("Subungual Hematoma Trephination")
+    if has_abscess_id:
+        resources_identified.append("Incision and Drainage / Needle Aspiration")
+    if has_splinting:
+        resources_identified.append("Orthopedic Splinting / Fracture Stabilization")
+    if has_eye_procedure:
+        resources_identified.append("Ocular Foreign Body Removal / Irrigation")
+
+    # If explicit zero resource, clear false positives
+    if is_explicit_zero_resource and not has_wound_repair and not has_trephination:
+        resources_identified = []
+
+    # Prolonged duration with moderate symptoms also implies basic lab / x-ray investigation
+    if duration >= 7 and not resources_identified and not is_explicit_zero_resource:
+        resources_identified.append("Diagnostic Outpatient Workup (Extended Duration >=7 days)")
+
+    resource_count = len(resources_identified)
+
+    if resource_count >= 2:
+        rationale = f"Multi-resource requirement (>=2 resources: {', '.join(resources_identified)})"
+    elif resource_count == 1:
+        rationale = f"Single resource requirement ({resources_identified[0]})"
+    else:
+        rationale = "Zero diagnostic or therapeutic resources anticipated (Physical Exam / Routine Management Only)"
+
+    return {
+        "resource_count": resource_count,
+        "resources": resources_identified,
+        "rationale": rationale,
+    }
+
+
+def _is_negated(keyword: str, text: str, pertinent_negatives: Optional[List[str]] = None) -> bool:
+    if pertinent_negatives:
+        for neg in pertinent_negatives:
+            if keyword in neg.lower():
+                return True
+    pattern = rf"(?:denies|deny|denied|no|without|negative for|rules? out|not experiencing|zero)\s+(?:any\s+|signs of\s+|evidence of\s+|complaints of\s+|having\s+)?{re.escape(keyword)}"
+    if re.search(pattern, text, re.IGNORECASE):
+        return True
+    return False
+
+
 def assess_medical_risk(
     symptoms: List[str],
     duration: int,
@@ -689,30 +972,53 @@ def assess_medical_risk(
     severity: str,
     red_flags: Optional[List[str]] = None,
     vitals: Optional[Dict[str, Any]] = None,
+    chief_complaint: str = "",
+    pertinent_negatives: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Assess medical risk level (LOW/MEDIUM/HIGH) and ESI Acuity Level (1-5)
-    aligned with Emergency Severity Index (ESI) triage standards and vital sign instability.
+    aligned with Emergency Severity Index (ESI v4) triage standards and vital sign instability.
     """
     lowered = [item.lower() for item in symptoms]
     red_flags = red_flags or []
+    pertinent_negatives = pertinent_negatives or []
     vitals = vitals or {}
     vital_triggers: List[str] = []
+    reasons: List[str] = []
 
-    # ESI Level 1 (Resuscitation - Immediate life-saving intervention needed)
+    combined_text = f"{chief_complaint} {' '.join(lowered)} {' '.join(red_flags)}".lower()
+
+    # ── ESI Level 1: Resuscitation (Immediate Life Threat) ───────────────────
     resuscitation_keywords = {
         "loss of consciousness",
         "unconscious",
         "unresponsive",
-        "anaphylaxis",
+        "comatose",
+        "coma",
+        "no response to",
+        "noxious stimuli",
         "cardiac arrest",
         "respiratory arrest",
         "can't breathe",
+        "apnea",
+        "pulseless",
+        "agonal",
+        "anaphylaxis",
+        "anaphylactic shock",
+        "severe hypoglycemia",
+        "glucometer reading 'low'",
+        "glucometer reading low",
+        "exsanguinating",
+        "arterial bleed",
         "uncontrolled bleeding",
+        "tension pneumothorax",
+        "tracheal deviation",
         "cyanosis",
+        "decerebrate",
+        "decorticate",
     }
 
-    # ESI Level 2 (Emergent / High-Risk situation / Should not wait)
+    # ── ESI Level 2: Emergent (High Risk / Should Not Wait) ──────────────────
     emergent_keywords = {
         "chest pain",
         "chest tightness",
@@ -724,223 +1030,211 @@ def assess_medical_risk(
         "fainting",
         "syncope",
         "severe headache",
+        "worst headache of life",
+        "thunderclap",
         "sudden weakness",
         "face drooping",
         "slurred speech",
+        "hemiparesis",
+        "aphasia",
+        "vision loss",
+        "loss of vision",
+        "cherry-red spot",
+        "curtain fell",
+        "antifreeze",
+        "ethylene glycol",
+        "toxic ingestion",
+        "overdose",
+        "suicide",
+        "suicidal",
+        "end my life",
+        "poison",
+        "testicular pain",
+        "scrotal pain",
+        "testicular torsion",
+        "ectopic pregnancy",
+        "stridor",
+        "inspiratory stridor",
+        "neutropenic fever",
+        "chemotherapy with fever",
+        "crepitus",
+        "dusky skin",
+        "fournier",
+        "necrotizing",
+        "perineal pain",
+        "kehr",
+        "lipase",
     }
-
-    minor_short_term = {
-        "headache",
-        "sore throat",
-        "fatigue",
-        "muscle pain",
-        "joint pain",
-        "cough",
-        "runny nose",
-        "congestion",
-        "sneezing",
-        "itchy eyes",
-    }
-    moderate = {
-        "fever",
-        "nausea",
-        "vomiting",
-        "diarrhea",
-        "dizziness",
-        "abdominal pain",
-        "rash",
-        "swelling",
-    }
-
-    risk_level = "LOW"
-    reasons: List[str] = []
-    emergency_recommended = False
-    esi_level = 5
-    esi_rationale = ""
 
     spo2 = vitals.get("spo2")
     hr = vitals.get("hr")
     rr = vitals.get("rr")
     sbp = vitals.get("sbp")
+    temp = vitals.get("temp")
 
-    # Check ESI 1 first (Resuscitation)
-    is_esi_1 = any(any(k in s for k in resuscitation_keywords) for s in lowered) or any(
-        any(k in rf.lower() for k in resuscitation_keywords) for rf in red_flags
-    )
+    # Step A: Evaluate ESI 1 (Resuscitation)
+    is_esi_1 = any(k in combined_text and not _is_negated(k, combined_text, pertinent_negatives) for k in resuscitation_keywords)
+
     if not is_esi_1 and spo2 is not None:
         try:
             if float(spo2) < 90:
                 is_esi_1 = True
-                reasons.append(f"Critical hypoxia (SpO2 {spo2}%) requiring immediate resuscitation intervention")
+                reasons.append(f"Critical hypoxia (SpO2 {spo2}% < 90%) requiring immediate resuscitation intervention")
                 vital_triggers.append(f"Critical Hypoxia: SpO2 {spo2}% (<90%)")
         except (ValueError, TypeError):
             pass
 
+    if not is_esi_1 and hr is not None:
+        try:
+            if float(hr) < 35:
+                is_esi_1 = True
+                reasons.append(f"Profound life-threatening bradycardia (HR {hr} bpm < 35)")
+                vital_triggers.append(f"Profound Bradycardia: HR {hr} bpm")
+        except (ValueError, TypeError):
+            pass
+
+    if not is_esi_1 and sbp is not None:
+        try:
+            if float(sbp) < 70 and float(sbp) > 0:
+                is_esi_1 = True
+                reasons.append(f"Profound decompensated shock (SBP {sbp} mmHg < 70)")
+                vital_triggers.append(f"Decompensated Shock: SBP {sbp} mmHg")
+        except (ValueError, TypeError):
+            pass
+
     if is_esi_1:
-        risk_level = "HIGH"
-        esi_level = 1
-        emergency_recommended = True
         if not reasons:
-            reasons.append("Critical life-threatening presentation requiring immediate resuscitation")
-        esi_rationale = "Immediate life-saving intervention required (ESI 1 - Resuscitation)"
-    else:
-        # Check ESI 2 (Emergent / High-risk or Danger Zone Vitals)
-        is_esi_2 = False
-        for symptom in lowered:
-            if any(flag in symptom for flag in emergent_keywords):
-                is_esi_2 = True
-                reasons.append(f"Critical emergent symptom detected: {symptom}")
-                break
-        if not is_esi_2 and red_flags:
+            reasons.append("Critical life-threatening presentation requiring immediate resuscitation (ESI 1)")
+        return {
+            "risk_level": "HIGH",
+            "esi_level": 1,
+            "esi_rationale": "Immediate life-saving intervention required (ESI 1 - Resuscitation)",
+            "emergency_recommended": True,
+            "risk_reasons": reasons,
+            "possible_concerns": ["Immediate life-threatening clinical instability"],
+            "vital_triggers": vital_triggers,
+            "predicted_resources": ["Immediate Resuscitation"],
+            "resource_count": 0,
+        }
+
+    # Step B: Evaluate ESI 2 (Emergent / High Risk / Danger Zone Vitals)
+    matched_flags = [k for k in emergent_keywords if k in combined_text and not _is_negated(k, combined_text, pertinent_negatives)]
+
+    # High-risk syndrome patterns
+    has_anticoag_head_trauma = any(ac in combined_text for ac in ["warfarin", "eliquis", "xarelto", "blood thinner", "inr"]) and any(ht in combined_text for ht in ["head", "hit head", "fall", "slipped", "contusion"])
+    if has_anticoag_head_trauma and any(sx in combined_text for sx in ["headache", "nausea", "vomit", "contusion", "inr"]):
+        matched_flags.append("Anticoagulated patient with acute head strike (high ICH risk)")
+
+    has_chemo_fever = any(ch in combined_text for ch in ["chemo", "chemotherapy", "lymphoma", "neutropen"]) and ("fever" in combined_text or (temp is not None and float(temp) >= 38.0))
+    if has_chemo_fever:
+        matched_flags.append("Immunocompromised / Chemotherapy presentation with fever (Neutropenic sepsis risk)")
+
+    has_visceral_trauma = ("kehr" in combined_text) or (any(bt in combined_text for bt in ["blow to", "blunt trauma", "blunt abdomen"]) and any(vs in combined_text for vs in ["shoulder pain", "luq", "spleen", "lightheaded"]))
+    if has_visceral_trauma:
+        matched_flags.append("Blunt abdominal trauma with signs of visceral hemorrhage")
+
+    has_pancreatitis = ("lipase" in combined_text) or ("radiating directly to back" in combined_text and "epigastric" in combined_text)
+    if has_pancreatitis:
+        matched_flags.append("Acute severe pancreatitis with back radiation")
+
+    is_esi_2 = bool(matched_flags)
+    if is_esi_2:
+        reasons.append(f"High-risk emergent presentation: {', '.join(matched_flags[:3])}")
+
+    # Objective Vital Signs Danger Zones (Escalate to ESI 2)
+    try:
+        if spo2 is not None and float(spo2) <= 92:
             is_esi_2 = True
-            reasons.append(f"Emergency red-flag indicators detected: {', '.join(red_flags)}")
+            reasons.append(f"Significant hypoxia (SpO2 {spo2}% <= 92%) warrants emergent evaluation")
+            vital_triggers.append(f"Hypoxia: SpO2 {spo2}%")
+        if hr is not None and (float(hr) < 40 or float(hr) > 140):
+            is_esi_2 = True
+            reasons.append(f"Hemodynamic instability (HR {hr} bpm) warrants emergent evaluation")
+            vital_triggers.append(f"Extreme Heart Rate: {hr} bpm")
+        if rr is not None and (float(rr) < 8 or float(rr) > 30):
+            is_esi_2 = True
+            reasons.append(f"Severe respiratory instability (RR {rr}/min) warrants emergent evaluation")
+            vital_triggers.append(f"Extreme Respiratory Rate: {rr}/min")
+        if sbp is not None and float(sbp) < 90 and float(sbp) > 0:
+            is_esi_2 = True
+            reasons.append(f"Hypotensive shock danger (SBP {sbp} mmHg < 90) warrants emergent evaluation")
+            vital_triggers.append(f"Hypotension: SBP {sbp} mmHg")
+    except (ValueError, TypeError):
+        pass
 
-        # Evaluate objective danger zone vitals
-        if not is_esi_2:
-            try:
-                if spo2 is not None and float(spo2) <= 92:
-                    is_esi_2 = True
-                    reasons.append(f"Significant hypoxia (SpO2 {spo2}% <= 92%) warrants emergent evaluation")
-                    vital_triggers.append(f"Hypoxia: SpO2 {spo2}%")
-                elif hr is not None and (float(hr) < 40 or float(hr) > 140):
-                    is_esi_2 = True
-                    reasons.append(f"Hemodynamic instability (HR {hr} bpm) warrants emergent evaluation")
-                    vital_triggers.append(f"Extreme Heart Rate: {hr} bpm")
-                elif rr is not None and (float(rr) < 8 or float(rr) > 30):
-                    is_esi_2 = True
-                    reasons.append(f"Severe respiratory instability (RR {rr}/min) warrants emergent evaluation")
-                    vital_triggers.append(f"Extreme Respiratory Rate: {rr}/min")
-                elif sbp is not None and float(sbp) < 90:
-                    is_esi_2 = True
-                    reasons.append(f"Hypotensive shock danger (SBP {sbp} mmHg < 90) warrants emergent evaluation")
-                    vital_triggers.append(f"Hypotension: SBP {sbp} mmHg")
-            except (ValueError, TypeError):
-                pass
+    # Severe acute pain / distress reported
+    if severity == "severe" and not is_esi_2 and ("pain" in combined_text or "headache" in combined_text):
+        if any(term in combined_text for term in ["excruciating", "10/10", "worst", "unbearable", "severe pain"]):
+            is_esi_2 = True
+            reasons.append("Severe acute pain/distress escalates to high-risk evaluation (ESI 2)")
 
-        if is_esi_2:
-            risk_level = "HIGH"
-            esi_level = 2
-            emergency_recommended = True
-            esi_rationale = "High-risk emergent presentation / patient should not wait (ESI 2 - Emergent)"
-        else:
-            # Check duration, severity, and patient comorbidities
-            if duration >= 7:
-                risk_level = "HIGH"
-                esi_level = 3
-                reasons.append(f"Prolonged duration: {duration} days")
-                esi_rationale = "Prolonged illness (>=7 days) requires multiple diagnostic resources (ESI 3 - Urgent)"
-            elif duration >= 3:
-                risk_level = "MEDIUM"
-                esi_level = 3
-                reasons.append(f"Extended duration: {duration} days")
-                esi_rationale = "Extended duration (>=3 days) warrants multi-resource evaluation (ESI 3 - Urgent)"
+    if is_esi_2:
+        return {
+            "risk_level": "HIGH",
+            "esi_level": 2,
+            "esi_rationale": "High-risk emergent presentation / patient should not wait (ESI 2 - Emergent)",
+            "emergency_recommended": True,
+            "risk_reasons": reasons,
+            "possible_concerns": ["Emergent clinical condition requiring urgent intervention"],
+            "vital_triggers": vital_triggers,
+            "predicted_resources": ["Emergent Evaluation"],
+            "resource_count": 0,
+        }
 
-            if severity == "severe":
-                if risk_level == "LOW":
-                    risk_level = "MEDIUM"
-                    esi_level = 3
-                elif risk_level == "MEDIUM":
-                    risk_level = "HIGH"
-                    esi_level = 2
-                reasons.append("Severe symptom intensity reported")
-                if esi_level == 2:
-                    esi_rationale = "Severe acute distress escalates acuity to high risk (ESI 2 - Emergent)"
-                elif not esi_rationale:
-                    esi_rationale = "Severe intensity warrants urgent multi-resource evaluation (ESI 3 - Urgent)"
-
-            risk_factors = profile.get("risk_factors", [])
-            if "advanced_age_65+" in risk_factors:
-                if risk_level == "LOW":
-                    risk_level = "MEDIUM"
-                    esi_level = 3
-                elif risk_level == "MEDIUM":
-                    risk_level = "HIGH"
-                    esi_level = 2
-                reasons.append("Age 65+ elevates risk")
-                if esi_level == 2 and not esi_rationale:
-                    esi_rationale = "High-risk age group with acute presentation (ESI 2 - Emergent)"
-
-            if any(item.startswith("condition:") for item in risk_factors):
-                if risk_level == "LOW":
-                    risk_level = "MEDIUM"
-                    esi_level = 3
-                elif risk_level == "MEDIUM":
-                    risk_level = "HIGH"
-                    esi_level = 2
-                reasons.append("Pre-existing high-risk conditions")
-                if esi_level == 2 and not esi_rationale:
-                    esi_rationale = "Pre-existing chronic comorbidities with acute symptoms (ESI 2 - Emergent)"
-
-            # Check low-risk / ESI 5 (routine, self-limited)
-            if (
-                risk_level == "LOW"
-                and lowered
-                and severity in {"mild", "unspecified"}
-                and 0 < duration <= 2
-                and not risk_factors
-                and all(any(m in s for m in minor_short_term) for s in lowered)
-            ):
-                reasons.append("Short-duration mild symptoms without high-risk context")
-                esi_level = 5
-                esi_rationale = "Mild, self-limited presentation requiring routine clinic/home care (ESI 5 - Non-Urgent)"
-                return {
-                    "risk_level": "LOW",
-                    "esi_level": 5,
-                    "esi_rationale": esi_rationale,
-                    "emergency_recommended": False,
-                    "risk_reasons": reasons,
-                    "possible_concerns": ["Self-limited minor illness"],
-                }
-
-            moderate_count = sum(1 for symptom in lowered if any(item in symptom for item in moderate))
-            if risk_level != "HIGH":
-                if moderate_count >= 3:
-                    risk_level = "HIGH"
-                    esi_level = 3
-                    reasons.append(f"Multiple concerning symptoms ({moderate_count})")
-                    esi_rationale = f"Multi-symptom presentation ({moderate_count} symptoms) requiring extensive resources (ESI 3 - Urgent)"
-                elif moderate_count >= 2:
-                    if risk_level == "LOW":
-                        risk_level = "MEDIUM"
-                        esi_level = 3
-                    reasons.append(f"{moderate_count} moderate-risk symptoms present")
-                    if not esi_rationale:
-                        esi_rationale = f"Multiple symptoms ({moderate_count}) requiring diagnostic resources (ESI 3 - Urgent)"
-                elif moderate_count == 1:
-                    if risk_level == "LOW":
-                        risk_level = "MEDIUM"
-                        esi_level = 4
-                    reasons.append("1 moderate-risk symptom present")
-                    if not esi_rationale:
-                        esi_rationale = "Single acute symptom requiring simple resource evaluation (ESI 4 - Less Urgent)"
-
-    if not reasons:
-        reasons.append("Symptoms currently appear mild and lower risk")
-        esi_level = 5
-        esi_rationale = "Mild presentation suitable for routine outpatient care (ESI 5 - Non-Urgent)"
+    # Step C: Evaluate Resource Consumption (ESI 3 vs 4 vs 5)
+    res_info = predict_expected_resources(
+        symptoms=symptoms,
+        chief_complaint=chief_complaint,
+        vitals=vitals,
+        profile=profile,
+        severity=severity,
+        duration=duration,
+    )
+    resource_count = res_info["resource_count"]
+    resource_list = res_info["resources"]
 
     possible_concerns: List[str] = []
-    if "fever" in lowered and "cough" in lowered:
-        possible_concerns.append("Upper respiratory infection")
-    if "headache" in lowered and "fever" in lowered:
-        possible_concerns.append("Viral illness")
-    if "chest pain" in lowered:
-        possible_concerns.append("Cardiac or musculoskeletal issue that needs urgent evaluation")
-    if "shortness of breath" in lowered:
-        possible_concerns.append("Pulmonary or airway evaluation needed")
-    if "abdominal pain" in lowered and "nausea" in lowered:
-        possible_concerns.append("Gastrointestinal issue")
+    if "fever" in combined_text and "cough" in combined_text:
+        possible_concerns.append("Upper respiratory infection / Pneumonia")
+    if "headache" in combined_text and "fever" in combined_text:
+        possible_concerns.append("Viral syndrome / Meningitis check")
+    if "abdominal pain" in combined_text:
+        possible_concerns.append("Acute abdomen / Gastrointestinal issue")
+    if "dysuria" in combined_text or "burning with urination" in combined_text:
+        possible_concerns.append("Urinary tract infection")
+    if "ankle" in combined_text or "wrist" in combined_text or "fracture" in combined_text:
+        possible_concerns.append("Musculoskeletal trauma / Fracture")
+    if "laceration" in combined_text or "cut" in combined_text:
+        possible_concerns.append("Skin laceration requiring repair")
     if not possible_concerns:
-        possible_concerns.append("General illness that should be monitored")
+        possible_concerns.append("Clinical evaluation and symptom management")
+
+    if resource_count >= 2:
+        risk_level = "HIGH" if severity == "severe" or profile.get("conditions") else "MEDIUM"
+        esi_level = 3
+        reasons.append(f"Requires >=2 distinct clinical resources: {', '.join(resource_list)}")
+        esi_rationale = f"Multi-resource clinical evaluation indicated ({', '.join(resource_list)}) (ESI 3 - Urgent)"
+    elif resource_count == 1:
+        risk_level = "MEDIUM"
+        esi_level = 4
+        reasons.append(f"Requires 1 focused diagnostic/treatment resource: {resource_list[0]}")
+        esi_rationale = f"Single resource evaluation ({resource_list[0]}) (ESI 4 - Less Urgent)"
+    else:
+        risk_level = "LOW"
+        esi_level = 5
+        reasons.append("Zero diagnostic or therapeutic resources indicated")
+        esi_rationale = "Routine presentation requiring zero acute clinical resources (ESI 5 - Non-Urgent)"
 
     return {
         "risk_level": risk_level,
         "esi_level": esi_level,
         "esi_rationale": esi_rationale,
-        "emergency_recommended": emergency_recommended,
+        "emergency_recommended": False,
         "risk_reasons": reasons,
         "possible_concerns": possible_concerns,
         "vital_triggers": vital_triggers,
+        "predicted_resources": resource_list,
+        "resource_count": resource_count,
     }
 
 
@@ -953,12 +1247,19 @@ def check_emergency_red_flags(symptoms: List[str]) -> bool:
         "confusion",
         "fainting",
         "loss of consciousness",
+        "comatose",
         "severe headache",
+        "worst headache of life",
         "sudden weakness",
         "face drooping",
         "slurred speech",
         "uncontrolled bleeding",
         "anaphylaxis",
+        "antifreeze",
+        "overdose",
+        "suicide",
+        "toxic ingestion",
+        "vision loss",
     }
     joined = " ".join(symptoms).lower()
     return any(flag in joined for flag in red_flags)
@@ -1264,6 +1565,8 @@ def risk_node(state: AgentState) -> AgentState:
         severity=updated.get("severity", "unspecified"),
         red_flags=updated.get("red_flags", []),
         vitals=vitals,
+        chief_complaint=_latest_user_message(updated.get("messages", [])),
+        pertinent_negatives=updated.get("pertinent_negatives", []),
     )
     vital_triggers = internal_assessment.get("vital_triggers", [])
     updated["vital_triggers"] = vital_triggers
