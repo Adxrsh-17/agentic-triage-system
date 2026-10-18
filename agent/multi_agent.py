@@ -489,6 +489,20 @@ def generate_followup_questions_llm(
     return None
 
 
+def _is_negated(keyword: str, text: str, pertinent_negatives: Optional[List[str]] = None) -> bool:
+    if pertinent_negatives:
+        for neg in pertinent_negatives:
+            if keyword in neg.lower():
+                return True
+    pattern = rf"(?:denies|deny|denied|no|not|without|negative for|rules? out|not experiencing|zero)\s+(?:[a-zA-Z0-9_,-]+\s+){{0,5}}{re.escape(keyword)}"
+    match = re.search(pattern, text, re.IGNORECASE)
+    if match:
+        matched_str = match.group(0).lower()
+        if not any(b in matched_str for b in [" but ", " however ", " except ", " although ", " yet "]):
+            return True
+    return False
+
+
 def extract_symptoms(text: str) -> Dict[str, Any]:
     """Deterministic regex symptom extractor fallback for offline / no-key execution."""
     symptom_patterns = {
@@ -526,7 +540,6 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
     }
 
     lowered = text.lower()
-    negation_prefix_pattern = r"\b(?:no|not|denies|denying|without|negative for|free of)\s+(?:\w+\s+){0,2}"
 
     found = []
     pertinent_negatives = []
@@ -538,8 +551,7 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
                 matched_variant = variant
                 break
         if matched_variant:
-            neg_regex = rf"{negation_prefix_pattern}{re.escape(matched_variant)}"
-            if re.search(neg_regex, lowered):
+            if _is_negated(matched_variant, lowered, pertinent_negatives):
                 pertinent_negatives.append(f"denies {name}")
             else:
                 found.append(name)
@@ -575,7 +587,13 @@ def extract_symptoms(text: str) -> Dict[str, Any]:
         "necrotizing",
         "kehr",
     ]
-    red_flags = [rf for rf in red_flag_patterns if rf in lowered]
+    red_flags = []
+    for rf in red_flag_patterns:
+        if rf in lowered:
+            if _is_negated(rf, lowered, pertinent_negatives):
+                pertinent_negatives.append(f"denies {rf}")
+            else:
+                red_flags.append(rf)
 
     duration_days = 0
     for pattern, multiplier in [
@@ -962,15 +980,7 @@ def predict_expected_resources(
     }
 
 
-def _is_negated(keyword: str, text: str, pertinent_negatives: Optional[List[str]] = None) -> bool:
-    if pertinent_negatives:
-        for neg in pertinent_negatives:
-            if keyword in neg.lower():
-                return True
-    pattern = rf"(?:denies|deny|denied|no|without|negative for|rules? out|not experiencing|zero)\s+(?:any\s+|signs of\s+|evidence of\s+|complaints of\s+|having\s+)?{re.escape(keyword)}"
-    if re.search(pattern, text, re.IGNORECASE):
-        return True
-    return False
+
 
 
 def assess_medical_risk(
@@ -1118,6 +1128,7 @@ def assess_medical_risk(
             "esi_level": 1,
             "esi_rationale": "Immediate life-saving intervention required (ESI 1 - Resuscitation)",
             "emergency_recommended": True,
+            "is_emergency": True,
             "risk_reasons": reasons,
             "possible_concerns": ["Immediate life-threatening clinical instability"],
             "vital_triggers": vital_triggers,
@@ -1149,21 +1160,52 @@ def assess_medical_risk(
     if is_esi_2:
         reasons.append(f"High-risk emergent presentation: {', '.join(matched_flags[:3])}")
 
-    # Objective Vital Signs Danger Zones (Escalate to ESI 2)
+    # Objective Vital Signs Danger Zones (Escalate to ESI 2) with Age-Adjusted Thresholds
     try:
+        try:
+            patient_age = float(profile.get("age", 25))
+        except (ValueError, TypeError):
+            patient_age = 25.0
+
+        # ESI v4 Age-Specific Pediatric Vital Signs Thresholds:
+        # Infant (<1 yr): normal HR 100-160, danger HR > 180 or < 80; danger RR > 50
+        # Toddler (1-3 yr): normal HR 90-150, danger HR > 160 or < 60; danger RR > 40
+        # Child (3-8 yr): normal HR 80-140, danger HR > 140 or < 50; danger RR > 32
+        # Adult (>8 yr): danger HR > 140 or < 40; danger RR > 30 or < 8
+        if patient_age < 1:
+            hr_upper_limit = 180
+            hr_lower_limit = 80
+            rr_upper_limit = 50
+            rr_lower_limit = 20
+        elif patient_age <= 3:
+            hr_upper_limit = 160
+            hr_lower_limit = 60
+            rr_upper_limit = 40
+            rr_lower_limit = 16
+        elif patient_age <= 8:
+            hr_upper_limit = 140
+            hr_lower_limit = 50
+            rr_upper_limit = 32
+            rr_lower_limit = 12
+        else:
+            hr_upper_limit = 140
+            hr_lower_limit = 40
+            rr_upper_limit = 30
+            rr_lower_limit = 8
+
         if spo2 is not None and float(spo2) <= 92:
             is_esi_2 = True
             reasons.append(f"Significant hypoxia (SpO2 {spo2}% <= 92%) warrants emergent evaluation")
             vital_triggers.append(f"Hypoxia: SpO2 {spo2}%")
-        if hr is not None and (float(hr) < 40 or float(hr) > 140):
+        if hr is not None and (float(hr) < hr_lower_limit or float(hr) > hr_upper_limit):
             is_esi_2 = True
-            reasons.append(f"Hemodynamic instability (HR {hr} bpm) warrants emergent evaluation")
+            reasons.append(f"Hemodynamic instability (HR {hr} bpm outside age-adjusted limits {hr_lower_limit}-{hr_upper_limit}) warrants emergent evaluation")
             vital_triggers.append(f"Extreme Heart Rate: {hr} bpm")
-        if rr is not None and (float(rr) < 8 or float(rr) > 30):
+        if rr is not None and (float(rr) < rr_lower_limit or float(rr) > rr_upper_limit):
             is_esi_2 = True
-            reasons.append(f"Severe respiratory instability (RR {rr}/min) warrants emergent evaluation")
+            reasons.append(f"Severe respiratory instability (RR {rr}/min outside age-adjusted limits {rr_lower_limit}-{rr_upper_limit}) warrants emergent evaluation")
             vital_triggers.append(f"Extreme Respiratory Rate: {rr}/min")
-        if sbp is not None and float(sbp) < 90 and float(sbp) > 0:
+        if sbp is not None and float(sbp) < 90 and float(sbp) > 0 and patient_age > 8:
             is_esi_2 = True
             reasons.append(f"Hypotensive shock danger (SBP {sbp} mmHg < 90) warrants emergent evaluation")
             vital_triggers.append(f"Hypotension: SBP {sbp} mmHg")
@@ -1182,6 +1224,7 @@ def assess_medical_risk(
             "esi_level": 2,
             "esi_rationale": "High-risk emergent presentation / patient should not wait (ESI 2 - Emergent)",
             "emergency_recommended": True,
+            "is_emergency": True,
             "risk_reasons": reasons,
             "possible_concerns": ["Emergent clinical condition requiring urgent intervention"],
             "vital_triggers": vital_triggers,
@@ -1238,6 +1281,7 @@ def assess_medical_risk(
         "esi_level": esi_level,
         "esi_rationale": esi_rationale,
         "emergency_recommended": False,
+        "is_emergency": False,
         "risk_reasons": reasons,
         "possible_concerns": possible_concerns,
         "vital_triggers": vital_triggers,
