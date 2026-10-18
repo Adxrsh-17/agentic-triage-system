@@ -1883,9 +1883,14 @@ def human_review_node(state: AgentState) -> AgentState:
     updated["awaiting_human_review"] = False
     updated["hitl_required"] = False
 
-    assessment = updated.get("risk_assessment", {})
+    assessment = dict(updated.get("risk_assessment", {}))
     suggested_esi = assessment.get("esi_level", 5)
-    final_esi = override_esi if (decision == "overridden" and override_esi is not None) else suggested_esi
+    is_override = decision in ["override", "overridden"] and override_esi is not None
+    final_esi = override_esi if is_override else suggested_esi
+    if is_override:
+        assessment["esi_level"] = final_esi
+        updated["risk_assessment"] = assessment
+        updated["nurse_override_esi"] = final_esi
 
     # Audit Log the encounter for clinical concordance tracking
     audit = get_audit_logger()
@@ -1897,7 +1902,7 @@ def human_review_node(state: AgentState) -> AgentState:
         ai_suggested_esi=suggested_esi,
         ai_rationale=assessment.get("esi_rationale", ""),
         ai_risk_level=assessment.get("risk_level", "LOW"),
-        nurse_decision="override" if (decision == "overridden" and override_esi != suggested_esi) else "accept",
+        nurse_decision="override" if (is_override and override_esi != suggested_esi) else "accept",
         nurse_final_esi=final_esi,
         override_reason=override_reason,
         nurse_notes=nurse_notes,
@@ -2362,7 +2367,7 @@ class MultiAgentSystem:
         return {
             "content": final_state.get("final_response", "No response generated."),
             "risk_level": assessment.get("risk_level", "LOW"),
-            "esi_level": assessment.get("esi_level", 5),
+            "esi_level": final_state.get("nurse_override_esi") or assessment.get("esi_level", 5),
             "esi_rationale": assessment.get("esi_rationale", ""),
             "is_emergency": assessment.get("is_emergency", False),
             "hitl_required": final_state.get("hitl_required", False),

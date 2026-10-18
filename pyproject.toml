@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-triage-copilot"
+version = "1.0.0"
+description = "Production-grade LangGraph Multi-Agent Clinical Triage Copilot with ESI v4 Consensus, HITL Safety Gates, HL7 FHIR R4, and Sub-Millisecond Resuscitation Fast-Path"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Adarsh Pradeep"}
+]
+keywords = [
+    "clinical-decision-support",
+    "emergency-severity-index",
+    "langgraph",
+    "multi-agent",
+    "fhir-r4",
+    "human-in-the-loop",
+    "healthcare-ai"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "langgraph>=0.1.0",
+    "langchain-core>=0.2.0",
+    "langchain-groq>=0.1.0",
+    "langchain-community>=0.2.0",
+    "sentence-transformers>=2.2.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.28.0",
+    "scikit-learn>=1.2.0",
+    "lightgbm>=4.0.0",
+    "pinecone>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "hypothesis>=6.80.0",
+    "httpx>=0.24.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+eval = [
+    "scikit-learn>=1.2.0",
+    "lightgbm>=4.0.0",
+    "matplotlib>=3.7.0",
+    "pandas>=2.0.0",
+]
+ui = [
+    "streamlit>=1.25.0",
+]
+
+[project.scripts]
+triage-eval = "scripts.run_ablation:main"
+triage-bench = "scripts.evaluate_system:main"
+triage-latency = "scripts.evaluate_latency:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"

@@ -440,7 +440,7 @@ def run_full_ablation_study(
     return study_results
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Clinical ablation study runner.")
     parser.add_argument("--data", type=str, default=None, help="Path to vignettes_v2.jsonl")
     parser.add_argument("--out-dir", type=str, default=None, help="Output directory")
@@ -449,3 +449,7 @@ if __name__ == "__main__":
     data_p = Path(args.data) if args.data else None
     out_p = Path(args.out_dir) if args.out_dir else None
     run_full_ablation_study(data_path=data_p, output_dir=out_p)
+
+
+if __name__ == "__main__":
+    main()
