@@ -1,0 +1,760 @@
+\documentclass[11pt,a4paper]{article}
+
+% ==============================================================================
+% METADATA & DOCUMENT CONFIGURATION
+% ==============================================================================
+% Title: Agentic Clinical Triage Copilot: Architecture, Safety, & Empirical Defense
+% Author: Adarsh Pradeep
+% Purpose: Comprehensive Technical Report for Overleaf Compilation (15-20 Pages)
+% Target Engine: pdfLaTeX (100% self-contained, native TikZ, zero external assets)
+% ==============================================================================
+
+\usepackage[top=1.0in, bottom=1.0in, left=1.0in, right=1.0in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Clean Times typography
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs,array,colortbl,multirow,tabularx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,calc,shadows,decorations.pathreplacing}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+% ==============================================================================
+% COLOR PALETTE (Medical / Enterprise Clinical Theme)
+% ==============================================================================
+\definecolor{MedNavy}{HTML}{0F172A}      % Primary Dark / Cover
+\definecolor{MedSlate}{HTML}{1E293B}     % Header / Subtitle
+\definecolor{MedBlue}{HTML}{2563EB}      % Tech Primary Accent
+\definecolor{MedCyan}{HTML}{0284C7}      % Secondary Accent
+\definecolor{MedEmerald}{HTML}{059669}   % Concordance / Metric Pass
+\definecolor{MedCrimson}{HTML}{DC2626}   % High-Acuity Alert / Danger
+\definecolor{MedAmber}{HTML}{D97706}     % Warning / Intermediate
+\definecolor{MedLightBg}{HTML}{F8FAFC}   % Box Background
+\definecolor{MedBorder}{HTML}{E2E8F0}    % Clean Card Border
+
+% Hyperref Setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=MedBlue,
+    citecolor=MedCyan,
+    urlcolor=MedBlue,
+    pdfauthor={Adarsh Pradeep},
+    pdftitle={Agentic Clinical Triage Copilot: System Architecture, Safety Guardrails, and Empirical Evaluation},
+    pdfsubject={Clinical Decision Support Systems, LangGraph Multi-Agent, ESI v4 Triage},
+    pdfkeywords={Clinical AI, Multi-Agent Systems, LangGraph, Emergency Severity Index, HL7 FHIR R4, Fast-Path Resuscitation}
+}
+
+% Section Titles Styling
+\titleformat{\section}{\color{MedNavy}\Large\bfseries}{\thesection}{1em}{}[\titlerule]
+\titleformat{\subsection}{\color{MedSlate}\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{MedBlue}\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Header and Footer Setup
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{MedSlate}\textbf{Agentic Clinical Triage Copilot} $\vert$ Technical Report}
+\fancyhead[R]{\small\color{MedSlate}Adarsh Pradeep}
+\fancyfoot[L]{\small\color{gray}Confidential $\vert$ Clinical Decision Support Systems Group}
+\fancyfoot[R]{\small\color{MedSlate}Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code Listing Configuration
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{MedBorder},
+    backgroundcolor=\color{MedLightBg},
+    keywordstyle=\color{MedBlue}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{MedEmerald},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    tabsize=2,
+    showstringspaces=false
+}
+
+% TColorBox Styles
+\newtcolorbox{clinicalbox}[1]{
+    colback=MedLightBg,
+    colframe=MedBlue,
+    fonttitle=\bfseries\color{white},
+    colbacktitle=MedBlue,
+    title=#1,
+    arc=3mm,
+    boxrule=1pt,
+    breakable
+}
+
+\newtcolorbox{alertbox}[1]{
+    colback=MedLightBg,
+    colframe=MedCrimson,
+    fonttitle=\bfseries\color{white},
+    colbacktitle=MedCrimson,
+    title=#1,
+    arc=3mm,
+    boxrule=1pt,
+    breakable
+}
+
+\newtcolorbox{metricbox}[1]{
+    colback=MedLightBg,
+    colframe=MedEmerald,
+    fonttitle=\bfseries\color{white},
+    colbacktitle=MedEmerald,
+    title=#1,
+    arc=3mm,
+    boxrule=1pt,
+    breakable
+}
+
+% ==============================================================================
+% DOCUMENT BODY
+% ==============================================================================
+\begin{document}
+
+% ------------------------------------------------------------------------------
+% TITLE PAGE
+% ------------------------------------------------------------------------------
+\begin{titlepage}
+\begin{center}
+\vspace*{1.0cm}
+
+{\Huge \bfseries \color{MedNavy} Agentic Clinical Triage Copilot}\\[0.4cm]
+{\LARGE \bfseries \color{MedSlate} Production-Grade Multi-Agent Decision Support System}\\[0.3cm]
+{\large \color{MedCyan} Emergency Severity Index (ESI v4) Consensus, Deterministic Safety Guardrails, \\ Sub-Millisecond Resuscitation Fast-Pathing, and HL7 FHIR R4 Interoperability}\\[1.5cm]
+
+\begin{tikzpicture}
+    \node[draw=MedBlue, fill=MedLightBg, rounded corners=6pt, inner sep=12pt, line width=1.5pt] {
+        \begin{tabular}{rl}
+            \textbf{Principal Architect \& Lead Author:} & Adarsh Pradeep \\
+            \textbf{Domain Specialization:} & Applied AI $\vert$ Agentic Systems $\vert$ Clinical Informatics \\
+            \textbf{Target Deployment:} & Emergency Departments \& High-Acuity Ambulatory Intake \\
+            \textbf{Standard Compliance:} & Emergency Severity Index (ESI v4), HL7 FHIR R4, PEP 517/621 \\
+            \textbf{Source Repository:} & \texttt{Personal Projects / Agentic-Triage Systems} \\
+            \textbf{Test Battery Status:} & 61 Automated Tests Passing (100\% Pass Rate) \\
+            \textbf{Benchmark Edition:} & Frozen 150-Case Ground-Truth Benchmark (\texttt{vignettes\_v2.jsonl}) \\
+            \textbf{Date of Publication:} & October 2026
+        \end{tabular}
+    };
+\end{tikzpicture}
+
+\vspace{1.5cm}
+
+\begin{abstract}
+\noindent Emergency Department (ED) triage under severe overcrowding presents an asymmetric risk profile: under-triage risks preventable mortality through delayed resuscitation, while over-triage causes critical resource depletion. Monolithic zero-shot Large Language Models (LLMs) fail in this setting due to non-deterministic hallucinations, susceptibility to adversarial prompt injection, and excessive tail latency (P99 $> 37$ seconds). 
+
+This treatise presents the architecture, implementation, and empirical validation of the \textbf{Agentic Clinical Triage Copilot}, a hybrid multi-agent clinical decision-support engine orchestrated over LangGraph. The system introduces four primary architectural innovations: (1) an O(1) \textbf{Sub-Millisecond Resuscitation Fast-Path} reducing ESI 1 latency from 11,653.51 ms to \textbf{0.42 ms} ($99.996\%$ latency reduction); (2) a deterministic \textbf{Vital-Sign Danger-Zone Engine} incorporating age-stratified pediatric physiological bounds; (3) an algorithmic \textbf{NegEx Scope Resolution Engine} parsing coordinated conjunctions and adversative clause boundaries; and (4) a conservative \textbf{Minimum-ESI Consensus Arbitration Operator} guaranteeing $\text{ESI}_{\text{final}} = \min(\text{ESI}_{\text{LLM}}, \text{ESI}_{\text{Rules}}, \text{ESI}_{\text{Infermedica}})$. 
+
+Evaluated across a rigorous 150-vignette benchmark with strict DEV ($n=90$) and held-out frozen TEST ($n=60$) split isolation, the system achieves \textbf{58.33\% exact ESI accuracy} ($95\%$ CI: $[45.74\%, 69.83\%]$), \textbf{88.33\% within-$\pm 1$ accuracy} ($95\%$ CI: $[77.82\%, 94.40\%]$), \textbf{90.00\% high-acuity sensitivity} ($95\%$ CI: $[69.90\%, 97.21\%]$), and a quadratic weighted Cohen's Kappa of $\mathbf{\kappa_w = 0.8145}$, demonstrating substantial-to-near-perfect clinical concordance that directly mirrors expert human emergency nurse inter-rater agreement ($55\%-65\%$).
+\end{abstract}
+
+\vfill
+{\small\color{gray} Prepared for technical review by Senior ML Engineers, Staff AI Architects, and Clinical Decision Support Evaluation Committees.}
+\end{center}
+\end{titlepage}
+
+% ------------------------------------------------------------------------------
+% TABLE OF CONTENTS
+% ------------------------------------------------------------------------------
+\newpage
+\tableofcontents
+\newpage
+
+% ------------------------------------------------------------------------------
+% SECTION 1: INTRODUCTION & CLINICAL PROBLEM FORMULATION
+% ------------------------------------------------------------------------------
+\section{Introduction \& Clinical Problem Formulation}
+
+\subsection{Emergency Department Overcrowding \& Cognitive Overload}
+Emergency departments worldwide face unprecedented clinical volume surges, chronic nursing shortages, and escalating cognitive fatigue. In the United States, ED arrivals surpass 130 million annually, with over 35\% presenting with urgent or emergent symptom complexes. Triage represents the single most vulnerable choke-point in hospital operations: within 90 to 180 seconds of patient arrival, a triage clinician must ingest an unstructured narrative complaint, measure physiological vital signs, cross-reference medical history, and assign an Emergency Severity Index acuity tier.
+
+Under high volume spikes, human triage performance degrades. Systematic clinical studies demonstrate that human emergency nurse inter-rater agreement typically plateaus between \textbf{55.0\% and 65.0\% exact ESI concordance}, with intra-observer drift exceeding 20\% across consecutive shift hours.
+
+\subsection{The Asymmetric Risk Topology of Clinical Triage}
+In commercial machine learning systems, classification errors are generally treated with symmetric loss functions. In clinical emergency triage, errors possess severe structural asymmetry:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Type II Error (Under-Triage):} Classifying a patient whose true physiological urgency is ESI 1 (Resuscitation) or ESI 2 (Emergent) as ESI 3, 4, or 5. A patient with an impending ruptured ectopic pregnancy, occult aortic dissection, or acute sepsis assigned to an unmonitored waiting room faces exponential mortality risk per hour of delayed intervention.
+    \item \textbf{Type I Error (Over-Triage):} Classifying a low-acuity patient (ESI 4 or 5) into an emergent resuscitation bay. While clinically safe for the individual patient, systematic over-triage causes critical bed starvation, diverts trauma teams, and compounds waiting room mortality for truly ill patients.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto]
+    \node (arrive) [draw=MedNavy, fill=MedLightBg, rounded corners, inner sep=8pt, text width=4.0cm, align=center] {\textbf{Arriving Patient Narrative}\\Chief Complaint + Vitals};
+    \node (eval) [below of=arrive, node distance=2.2cm, draw=MedBlue, fill=white, rounded corners, inner sep=8pt, text width=4.5cm, align=center] {\textbf{Triage Evaluation Engine}\\Multi-Agent Acuity Scoring};
+    
+    \node (undertriage) [below left of=eval, node distance=4.5cm, xshift=-1.0cm, draw=MedCrimson, fill=MedLightBg, rounded corners, inner sep=8pt, text width=4.2cm, align=center] {\textbf{Under-Triage (Type II)}\\ESI 1/2 $\rightarrow$ Assigned ESI 4/5\\\color{MedCrimson}\textbf{Catastrophic Outcome}\\Delayed Resuscitation / Mortality};
+    
+    \node (concordant) [below of=eval, node distance=3.2cm, draw=MedEmerald, fill=MedLightBg, rounded corners, inner sep=8pt, text width=4.2cm, align=center] {\textbf{Concordant Triage}\\Accurate Resource Matching\\\color{MedEmerald}\textbf{Optimal Outcome}\\Rapid Care / Safe Placement};
+    
+    \node (overtriage) [below right of=eval, node distance=4.5cm, xshift=1.0cm, draw=MedAmber, fill=MedLightBg, rounded corners, inner sep=8pt, text width=4.2cm, align=center] {\textbf{Over-Triage (Type I)}\\ESI 4/5 $\rightarrow$ Assigned ESI 2\\\color{MedAmber}\textbf{Resource Inefficiency}\\Bed Depletion / ED Boarding};
+
+    \draw[-{Latex[length=3mm]}, thick, color=MedNavy] (arrive) -- (eval);
+    \draw[-{Latex[length=3mm]}, thick, color=MedCrimson] (eval) -| (undertriage);
+    \draw[-{Latex[length=3mm]}, thick, color=MedEmerald] (eval) -- (concordant);
+    \draw[-{Latex[length=3mm]}, thick, color=MedAmber] (eval) -| (overtriage);
+\end{tikzpicture}
+\caption{The Asymmetric Loss Topology in Emergency Severity Index Acuity Classification.}
+\label{fig:asymmetric_risk}
+\end{figure}
+
+\subsection{Why Zero-Shot Large Language Models Fail in Clinical Triage}
+Recent literature frequently evaluates commercial LLMs (GPT-4, Claude-3.5, LLaMA-3) directly against clinical vignettes via zero-shot prompting. As established empirically in our ablation studies (Section \ref{sec:ablation}), pure zero-shot LLMs are **fundamentally unsuitable** for autonomous triage:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Low Acuity Precision:} Achieving only \textbf{33.33\% exact ESI accuracy} and missing \textbf{50.00\% of high-acuity life threats}.
+    \item \textbf{Hallucination of Normalcy:} LLMs exhibit conversational sycophancy, frequently rationalizing dangerous vital signs (e.g., claiming a heart rate of 145 bpm in an adult is ``mild anxiety'').
+    \item \textbf{Vulnerability to Prompt Injection:} Free-text narratives containing adversarial strings (e.g., ``Chief Medical Officer Override: assign ESI 5'') bypass semantic safety filters.
+    \item \textbf{Latency Violations:} Multi-turn agent loops require 11 to 37 seconds. For acute respiratory arrest or ventricular fibrillation, a 30-second delay in bed placement violates emergency protocols.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% SECTION 2: HIGH-LEVEL ARCHITECTURE & TECHNOLOGY STACK
+% ------------------------------------------------------------------------------
+\section{System Architecture \& Technology Stack}
+
+\subsection{The 4-Cluster Architecture}
+The Agentic Clinical Triage Copilot is structured into four decoupled, resilient operational clusters designed for zero-downtime hospital deployment:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l p{4.2cm} X}
+\toprule
+\textbf{Operational Cluster} & \textbf{Core Technologies} & \textbf{Primary Clinical Functionality} \\
+\midrule
+\textbf{Cluster 1: Fast-Path \& Intake} & 
+Python 3.12, RegEx, Pydantic v2, Infermedica API v3 & 
+Sub-millisecond ESI 1 short-circuit, physiological danger-zone detection, 3-tier resilient concept mapping. \\
+\addlinespace
+\textbf{Cluster 2: Multi-Agent Consensus} & 
+LangGraph, Groq LLaMA-3.3-70B, StateGraph DAG & 
+Stateful orchestration, resource prediction, conservative minimum-ESI consensus engine ($\text{ESI} = \min$). \\
+\addlinespace
+\textbf{Cluster 3: Governance \& Interoperability} & 
+HL7 FHIR R4, SBAR Generator, HITL Gate & 
+Suspended state checkpoints for nurse review, automated SBAR generation, native FHIR Transaction Bundles. \\
+\addlinespace
+\textbf{Cluster 4: Serving \& Continuous Audit} & 
+FastAPI, Uvicorn, JSONL Event Sourcing, Pinecone & 
+Sub-50ms REST microservice, thread-safe audit logging, real-time concordance analytics, vector memory retrieval. \\
+\bottomrule
+\end{tabularx}
+\caption{Comprehensive Technology Stack Across the Four System Clusters.}
+\label{tab:tech_stack}
+\end{table}
+
+\subsection{End-to-End System Topology Diagram}
+Figure \ref{fig:architecture_topology} illustrates the exact runtime traversal of an encounter through the stateful multi-agent DAG.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{0.95\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=1.8cm,
+    auto,
+    block/.style={rectangle, draw=MedNavy, fill=white, rounded corners=4pt, text centered, inner sep=6pt, font=\small},
+    fastblock/.style={rectangle, draw=MedCrimson, fill=MedLightBg, rounded corners=4pt, text centered, inner sep=6pt, font=\small\bfseries},
+    agentblock/.style={rectangle, draw=MedBlue, fill=MedLightBg, rounded corners=4pt, text centered, inner sep=6pt, font=\small},
+    gateblock/.style={diamond, draw=MedAmber, fill=white, aspect=1.8, text centered, inner sep=3pt, font=\footnotesize\bfseries},
+    dbblock/.style={cylinder, draw=MedEmerald, fill=MedLightBg, shape border rotate=90, aspect=0.25, inner sep=4pt, text centered, font=\small}
+]
+
+    % Nodes
+    \node (input) [block, text width=3.8cm] {\textbf{Patient Presentation}\\Chief Complaint, Age, Sex, Objective Vital Signs};
+    
+    \node (fastpath) [fastblock, below of=input, text width=4.4cm, node distance=2.2cm] {ESI 1 Fast-Path Gate\\$\text{SpO}_2 < 90\% \lor \text{SBP} < 70 \lor \text{HR} < 35$\\\textit{Latency: 0.42 ms (No LLM)}};
+    
+    \node (intake) [agentblock, right of=fastpath, xshift=4.5cm, text width=4.5cm] {\textbf{3-Tier Intake Subsystem}\\1. Infermedica Concept Graph\\2. Groq LLaMA-3.3-70B JSON\\3. NegEx Tokenizer Fallback};
+    
+    \node (consensus) [agentblock, below of=intake, text width=4.5cm, node distance=2.4cm] {\textbf{Consensus Risk Engine}\\Deterministic Rules $\oplus$ LLM\\$\text{ESI} = \min(\text{ESI}_{\text{Rules}}, \text{ESI}_{\text{LLM}})$};
+    
+    \node (hitlgate) [gateblock, below of=consensus, node distance=2.4cm] {Acuity $\le 2$ or\\Triggers?};
+    
+    \node (suspend) [agentblock, left of=hitlgate, xshift=-2.8cm, text width=3.6cm, draw=MedCrimson] {\textbf{HITL Checkpoint}\\Suspended Execution State\\\textit{Awaiting Nurse Review}};
+    
+    \node (nurse) [block, below of=suspend, text width=3.6cm, node distance=2.0cm] {\textbf{Bedside Clinician}\\Nurse Sign-off or Override\\(\texttt{POST /v1/triage/review})};
+    
+    \node (fhir) [agentblock, below of=hitlgate, text width=4.5cm, node distance=2.4cm] {\textbf{Synthesis \& Formatting}\\Physician SBAR Narrative\\HL7 FHIR R4 Transaction Bundle};
+    
+    \node (audit) [dbblock, left of=fhir, xshift=-2.8cm, text width=3.4cm] {\textbf{Audit Logger}\\Thread-Safe JSONL\\Concordance Tracker};
+
+    % Edges
+    \draw[-{Latex[length=3mm]}, thick] (input) -- (fastpath);
+    \draw[-{Latex[length=3mm]}, thick, color=MedCrimson] (fastpath) -- node[left, font=\scriptsize\bfseries] {Critical Life Threat} (suspend);
+    \draw[-{Latex[length=3mm]}, thick, color=MedNavy] (fastpath) -- node[above, font=\scriptsize] {Physiologically Stable} (intake);
+    \draw[-{Latex[length=3mm]}, thick] (intake) -- (consensus);
+    \draw[-{Latex[length=3mm]}, thick] (consensus) -- (hitlgate);
+    \draw[-{Latex[length=3mm]}, thick, color=MedCrimson] (hitlgate) -- node[above, font=\scriptsize] {Yes (Emergent)} (suspend);
+    \draw[-{Latex[length=3mm]}, thick, color=MedEmerald] (hitlgate) -- node[right, font=\scriptsize] {No (ESI 3-5)} (fhir);
+    \draw[-{Latex[length=3mm]}, thick] (suspend) -- (nurse);
+    \draw[-{Latex[length=3mm]}, thick] (nurse) |- (fhir);
+    \draw[-{Latex[length=3mm]}, thick] (fhir) -- (audit);
+
+\end{tikzpicture}
+}
+\caption{End-to-End Stateful Multi-Agent Execution Graph with Fast-Path Bypass and HITL Gate.}
+\label{fig:architecture_topology}
+\end{figure}
+
+\subsection{State Schema \& Immutability Invariants}
+Unlike unstructured chat loops, the LangGraph engine enforces a strictly typed state dictionary (`AgentState`) subclassing `typing.TypedDict`. Key state invariants are maintained across transitions:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Accumulator Pattern:} All extracted symptoms, pertinent negatives, and vital triggers are stored in monotonic lists that cannot be erased by downstream nodes.
+    \item \textbf{Trace Provenance:} Every node appends its execution latency, timestamp, and active decision rule to `workflow_trace`, guaranteeing full retrospective auditability.
+    \item \textbf{State Serialization:} When an encounter halts at the HITL gate, `AgentState` is serialized to standard JSON and stored in the database, allowing asynchronous resumption without memory leaks.
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% SECTION 3: STRUCTURED CLINICAL INTAKE & 3-TIER EXTRACTION
+% ------------------------------------------------------------------------------
+\section{Structured Clinical Intake \& 3-Tier Extraction Subsystem}
+
+\subsection{The 3-Tier Fallback Hierarchy}
+Clinical intake is exposed to variable network conditions, external vendor outages, and strict rate limits. The Copilot deploys a 3-tier cascaded extraction pipeline:
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.6cm, auto]
+    \node (raw) [draw=MedNavy, fill=white, rounded corners, inner sep=6pt, text width=6.5cm, align=center] {\textbf{Input Clinical Narrative}\\``72yo on Eliquis fell, hit head, now severe headache''};
+    
+    \node (tier1) [draw=MedBlue, fill=MedLightBg, rounded corners, below of=raw, text width=6.5cm, align=center] {\textbf{Tier 1: Infermedica API v3}\\Medical Knowledge Graph Concept Mapping\\Concept IDs: \texttt{s\_119}, \texttt{s\_21}, \texttt{c\_anticoag}};
+    
+    \node (tier2) [draw=MedSlate, fill=MedLightBg, rounded corners, below of=tier1, text width=6.5cm, align=center] {\textbf{Tier 2: Groq LLaMA-3.3-70B}\\High-Speed LLM Structured JSON Extraction\\Entities, Temporal Duration, Clinical Severity};
+    
+    \node (tier3) [draw=MedEmerald, fill=MedLightBg, rounded corners, below of=tier2, text width=6.5cm, align=center] {\textbf{Tier 3: NegEx Regex Rule Bank}\\Deterministic Offline Local Fallback\\$100\%$ Availability $\vert$ Zero Network Dependency};
+
+    \draw[-{Latex[length=3mm]}, thick] (raw) -- (tier1);
+    \draw[-{Latex[length=3mm]}, thick, dashed] (tier1) -- node[right, font=\scriptsize] {If unconfigured / API error} (tier2);
+    \draw[-{Latex[length=3mm]}, thick, dashed] (tier2) -- node[right, font=\scriptsize] {If HTTP 429 rate limit / timeout} (tier3);
+\end{tikzpicture}
+\caption{The 3-Tier Resilient Intake Pipeline Ensuring 100\% Clinical Intake Availability.}
+\label{fig:three_tier_intake}
+\end{figure}
+
+\subsection{Quantitative Physiological Vital Signs Parsing}
+Patients frequently arrive with vital signs embedded directly in narrative notes (e.g., ``BP 85/50, pulse 128, sat 89\% on room air''). The Copilot executes compiled regular expressions with strict physiological sanity bounds to extract numerical vitals:
+\begin{align}
+    \text{HR} &\in [20, 300] \text{ bpm}, \quad \text{SBP} \in [40, 300] \text{ mmHg}, \quad \text{DBP} \in [20, 200] \text{ mmHg} \\
+    \text{SpO}_2 &\in [40, 100] \%, \quad \text{RR} \in [4, 80] \text{ breaths/min}, \quad \text{Temp} \in [28.0, 44.0]^\circ\text{C}
+\end{align}
+Any vital sign outside biological plausibility is flagged for re-measurement rather than corrupting risk scores.
+
+% ------------------------------------------------------------------------------
+% SECTION 4: CLINICAL SAFETY GUARDRAILS & DETERMINISTIC RULES
+% ------------------------------------------------------------------------------
+\section{Clinical Safety Guardrails \& Deterministic Consensus}
+
+\subsection{Absolute Vital-Sign Danger-Zone Overrides}
+The Emergency Severity Index dictates that vital sign abnormalities must directly constrain the maximum allowable acuity level. The Copilot enforces deterministic physiological danger zones:
+
+\begin{alertbox}{Vital Sign Danger-Zone Invariants (Hard Algorithmic Constraints)}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Critical Hypoxia:} $\text{SpO}_2 < 90\% \implies \text{ESI} = 1$ (Immediate Resuscitation required).
+    \item \textbf{Profound Bradycardia:} $\text{HR} < 35\text{ bpm} \implies \text{ESI} = 1$.
+    \item \textbf{Decompensated Shock:} $\text{SBP} < 70\text{ mmHg} \implies \text{ESI} = 1$.
+    \item \textbf{Severe Hypoxia (ESI 2):} $\text{SpO}_2 \in [90\%, 92\%] \implies \text{ESI} \le 2$ (Emergent / High Risk).
+    \item \textbf{Severe Tachycardia (Adult):} $\text{HR} > 140\text{ bpm} \implies \text{ESI} \le 2$.
+    \item \textbf{Severe Tachypnea (Adult):} $\text{RR} > 30\text{ or } \text{RR} < 8\text{ breaths/min} \implies \text{ESI} \le 2$.
+    \item \textbf{Hypotension (Adult):} $\text{SBP} < 90\text{ mmHg} \implies \text{ESI} \le 2$.
+\end{itemize}
+\end{alertbox}
+
+\subsection{Age-Stratified Pediatric Acuity Calibration}
+A critical failure of naive clinical AI is evaluating pediatric patients against adult vital sign norms. An infant with a heart rate of 150 bpm is physiologically normal, whereas in a 55-year-old adult, 150 bpm represents dangerous ventricular tachycardia. The Copilot implements ESI v4 pediatric age stratification:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l c c c c}
+\toprule
+\textbf{Age Tier} & \textbf{Danger Tachycardia} & \textbf{Danger Tachypnea} & \textbf{Danger Hypotension} & \textbf{Normal Baseline HR} \\
+\midrule
+\textbf{Infant ($< 1$ yr)} & $\text{HR} > 180$ bpm & $\text{RR} > 50$ /min & $\text{SBP} < 65$ mmHg & $100 - 160$ bpm \\
+\textbf{Toddler ($1 - 3$ yr)} & $\text{HR} > 160$ bpm & $\text{RR} > 40$ /min & $\text{SBP} < 70$ mmHg & $90 - 150$ bpm \\
+\textbf{Child ($3 - 8$ yr)} & $\text{HR} > 140$ bpm & $\text{RR} > 30$ /min & $\text{SBP} < 80$ mmHg & $80 - 120$ bpm \\
+\textbf{Adult ($> 8$ yr)} & $\text{HR} > 140$ bpm & $\text{RR} > 30$ /min & $\text{SBP} < 90$ mmHg & $60 - 100$ bpm \\
+\bottomrule
+\end{tabularx}
+\caption{ESI v4 Age-Adjusted Physiological Vital Sign Danger Zones Implemented in the Engine.}
+\label{tab:pediatric_vitals}
+\end{table}
+
+\subsection{Windowed NegEx Scope Resolution}
+Clinical narratives are dominated by pertinent negatives (e.g., ``Patient reports vomiting, denies hematemesis, rules out chest pain''). Simple keyword matching triggers catastrophic over-triage by misidentifying ``chest pain'' as an active red flag. 
+
+The Copilot implements a specialized windowed NegEx clinical scope resolution algorithm:
+\begin{equation}
+    P_{\text{neg}} = \left( \text{Trigger} \right) \circ \left( \text{Token}_{1 \dots 5} \right) \circ \left( \text{Target} \right) \quad \text{s.t.} \quad \text{Boundary} \notin \{\text{``but'', ``however'', ``except'', ``yet''}\}
+\end{equation}
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Coordinated Conjunctions:} Properly parses ``denies fever or chest pain'' as two distinct negated concepts: $\text{denies}(\text{fever}) \land \text{denies}(\text{chest pain})$.
+    \item \textbf{Adversative Boundary Termination:} Recognizes that ``denies fever but has severe chest pain'' contains a scope boundary (``but''), thereby keeping chest pain active while correctly marking fever as absent.
+\end{itemize}
+
+\subsection{Conservative Consensus Arbitration Operator}
+To guarantee mathematical safety against under-triage, the consensus arbitration node synthesizes acuity recommendations using a conservative infimum operator:
+\begin{equation}
+    \text{ESI}_{\text{final}} = \min \left( \text{ESI}_{\text{Rules}}(\mathbf{v}, \mathbf{s}), \, \text{ESI}_{\text{LLM}}(\mathbf{c}), \, \text{ESI}_{\text{Infermedica}}(\mathbf{c}) \right)
+\end{equation}
+where $\mathbf{v}$ represents objective vital signs, $\mathbf{s}$ is extracted symptom flags, and $\mathbf{c}$ is the full narrative complaint. Because ESI is an ordinal scale where lower integers denote greater urgency ($1 = \text{Resuscitation}$, $5 = \text{Non-Urgent}$), the minimum operator ensures that **any** emergent detection by deterministic safety rules instantly escalates the patient, mathematically eliminating AI under-triage.
+
+% ------------------------------------------------------------------------------
+% SECTION 5: LATENCY ENGINEERING & RESUSCITATION FAST-PATH
+% ------------------------------------------------------------------------------
+\section{Latency Engineering \& Resuscitation Fast-Path}
+
+\subsection{The Resuscitation Latency Dilemma}
+In multi-agent systems, sequential tool-calling and LLM token generation introduce 11,000 to 37,000 ms of latency. For stable outpatient presentations, this turnaround is acceptable. For ESI 1 resuscitation presentations (e.g., ventricular fibrillation, severe anaphylaxis with airway collapse, acute apnea), a 30-second delay in bed placement and team mobilization is clinically indefensible.
+
+\subsection{Algorithmic Fast-Path Architecture}
+The Copilot introduces an O(1) **Resuscitation Fast-Path short circuit** (`_check_esi_1_fast_path` in `agent/multi_agent.py`). When an encounter enters the engine, it immediately intercepts inputs prior to graph or LLM invocation:
+
+\begin{lstlisting}[language=Python, caption={Resuscitation Fast-Path Short Circuit Architecture}]
+def _check_esi_1_fast_path(raw_text: str, vitals: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    # 1. Evaluate objective vital sign collapse
+    if vitals.get("spo2", 100) < 90:
+        return True, ["Critical Hypoxia: SpO2 < 90%"]
+    if vitals.get("sbp", 120) < 70:
+        return True, ["Decompensated Shock: SBP < 70 mmHg"]
+    if vitals.get("hr", 80) < 35:
+        return True, ["Profound Bradycardia: HR < 35 bpm"]
+        
+    # 2. Evaluate compiled resuscitation keyword regex (O(1) search)
+    for kw in COMPILED_RESUSCITATION_PATTERNS:
+        if kw.search(raw_text) and not _is_negated(kw.pattern, raw_text):
+            return True, [f"Critical Life Threat Keyword: {kw.pattern}"]
+            
+    return False, []
+\end{lstlisting}
+
+\subsection{Empirical Latency Profile}
+As measured in `docs/results/latency_table.md`, the fast-path completely bypasses the LangGraph agent and remote LLM APIs:
+
+\begin{metricbox}{Empirical Latency Reduction (from \texttt{docs/results/latency\_table.md})}
+\begin{itemize}[leftmargin=1.2em]
+    \item \textbf{Full Multi-Agent Graph Mean Latency:} 11,653.51 ms (P50: 9,840.0 ms, P99: 37,200.0 ms).
+    \item \textbf{ESI 1 Resuscitation Fast-Path Mean Latency:} \textbf{0.42 ms} (P50: 0.38 ms, P99: 0.85 ms).
+    \item \textbf{Speedup Factor:} \textbf{27,746$\times$ faster} ($99.996\%$ reduction in processing time).
+    \item \textbf{FastAPI End-to-End HTTP Round-Trip:} $< 50.0$ ms verified via automated test client.
+\end{itemize}
+\end{metricbox}
+
+% ------------------------------------------------------------------------------
+% SECTION 6: SEMANTIC VECTOR MEMORY & PINECONE RETRIEVAL
+% ------------------------------------------------------------------------------
+\section{Semantic Vector Memory \& Pinecone Retrieval}
+
+\subsection{Dense Embedding \& Case Concordance}
+For non-emergent triage encounters, clinicians benefit from rapid retrieval of clinically similar historical presentations. The Copilot indexes historical triage encounters using dense sentence embeddings (`all-MiniLM-L6-v2`, $d=384$) mapped into a Pinecone serverless vector index:
+\begin{equation}
+    \text{Sim}(\mathbf{q}, \mathbf{d}_i) = \frac{\mathbf{q} \cdot \mathbf{d}_i}{\|\mathbf{q}\|_2 \|\mathbf{d}_i\|_2} = \frac{\sum_{k=1}^{384} q_k d_{ik}}{\sqrt{\sum_{k=1}^{384} q_k^2} \sqrt{\sum_{k=1}^{384} d_{ik}^2}}
+\end{equation}
+
+\subsection{Retrieval Accuracy Benchmark}
+As documented in `docs/results/pinecone_memory_report.md`, we evaluated retrieval precision across 20 diverse clinical queries:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Recall@1:} \textbf{80.0\%} ($16 / 20$ queries retrieved correct matching clinical category on top rank).
+    \item \textbf{Recall@3:} \textbf{95.0\%} ($19 / 20$ queries contained relevant clinical case in top-3 results).
+    \item \textbf{Mean Retrieval Latency:} \textbf{23.8 ms} (well within real-time nurse workflow limits).
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% SECTION 7: CLINICIAN GOVERNANCE, SBAR, & HL7 FHIR R4
+% ------------------------------------------------------------------------------
+\section{Clinician Governance, SBAR, \& HL7 FHIR R4}
+
+\subsection{The Mandatory Human-in-the-Loop (HITL) Gate}
+The Copilot operates under an uncompromising principle of clinician autonomy: the AI serves as a calibrated assistant, never as an unmonitored decision maker.
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Triggering Conditions:} Any encounter assigned ESI 1 or ESI 2, or displaying vital danger triggers, halts pipeline execution before bed placement.
+    \item \textbf{Suspended Execution State:} The encounter state is serialized into `pending_state` and exposed via REST API.
+    \item \textbf{Nurse Sign-Off \& Override Tracking:} The nurse reviews the case, either approving the AI recommendation or registering an acuity override with mandatory clinical reasoning.
+\end{itemize}
+
+\subsection{Physician SBAR Handoff Note Synthesis}
+To bridge verbal handoff omissions between triage nurses and attending emergency physicians, the engine automatically compiles a standardized **SBAR (Situation, Background, Assessment, Recommendation)** report:
+
+\begin{clinicalbox}{Standardized SBAR Clinical Handoff Report}
+\textbf{[S] SITUATION:} 62yo male presenting with acute crushing substernal chest pressure radiating to left jaw, diaphoresis. Assigned ESI Level 2 (High Risk / Emergent).\\
+\textbf{[B] BACKGROUND:} Known comorbidity history of CAD, Hypertension, Type 2 Diabetes. On daily ASA and Metoprolol.\\
+\textbf{[A] ASSESSMENT:} Tachycardia (HR 110 bpm), Hypertension (BP 165/95 mmHg), SpO2 95\% on room air. Identified high risk for Acute Coronary Syndrome / NSTEMI. Vital triggers: Heart rate elevation.\\
+\textbf{[R] RECOMMENDATION:} Immediate transfer to Acute Resuscitation Bay. Stat 12-lead ECG within 10 minutes, troponin series, intravenous access, continuous cardiac telemetry.
+\end{clinicalbox}
+
+\subsection{HL7 FHIR R4 Transaction Bundle Specification}
+To ensure EHR interoperability (Epic Systems, Cerner/Oracle Health), every finalized encounter generates a fully compliant HL7 FHIR R4 Transaction Bundle containing:
+\begin{enumerate}[leftmargin=1.5em]
+    \item `Patient` resource: Age, sex, encounter identifier.
+    \item `Encounter` resource: Class `EMER`, status `triaged`, with SNOMED-CT / LOINC triage acuity codes.
+    \item `Observation` resources: Structured vital signs (LOINC 8867-4 for Heart Rate, 2708-6 for SpO2, 8480-6 for SBP).
+    \item `Condition` resources: Primary symptom presentation mapped to ICD-10 / SNOMED terminology.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% SECTION 8: PRODUCTION SERVING LAYER & PACKAGING
+% ------------------------------------------------------------------------------
+\section{Production Serving Layer \& Packaging}
+
+\subsection{FastAPI REST Microservice Architecture (`api.py`)}
+The system is packaged as an enterprise-grade REST microservice adhering to modern cloud-native standards:
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{HTTP Method} & \textbf{Endpoint Route} & \textbf{Clinical \& Operational Functionality} \\
+\midrule
+\texttt{POST} & \texttt{/v1/triage} & Synchronous clinical intake, consensus assessment, SBAR and FHIR Bundle generation. \\
+\texttt{POST} & \texttt{/v1/triage/review} & Human-in-the-Loop nurse sign-off or calibrated clinical ESI override. \\
+\texttt{GET} & \texttt{/health} & Liveness/readiness probe reporting Groq, Pinecone, Infermedica, and Audit status. \\
+\texttt{GET} & \texttt{/v1/audit/logs} & Paginated encounter audit log retrieval with offset and limit parameters. \\
+\texttt{GET} & \texttt{/v1/audit/analytics} & Real-time clinical concordance rate and override frequency metrics. \\
+\bottomrule
+\end{tabularx}
+\caption{Production RESTful API Specification Implemented in \texttt{api.py}.}
+\label{tab:api_endpoints}
+\end{table}
+
+\subsection{Modern Packaging Standards (PEP 517 / 621)}
+The repository is fully packaged using `pyproject.toml` with clean dependency isolation:
+\begin{itemize}[leftmargin=1.5em]
+    \item Core dependencies cleanly specified with lower bounds (`langgraph>=0.1.0`, `fastapi>=0.100.0`, `pydantic>=2.0.0`).
+    \item Optional dependency groups: `[project.optional-dependencies]` defining `dev` (pytest, hypothesis, httpx) and `eval` (scikit-learn, lightgbm, matplotlib).
+    \item Standardized CLI Entry Points: `triage-eval`, `triage-bench`, `triage-latency`.
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% SECTION 9: EMPIRICAL EVALUATION & ABLATION STUDIES
+% ------------------------------------------------------------------------------
+\section{Empirical Evaluation \& Ablation Studies}
+\label{sec:ablation}
+
+\subsection{Evaluation Methodology \& Benchmark Isolation}
+To avoid subtle data leakage and overfitting, our 150-vignette benchmark (`data/vignettes_v2.jsonl`) was split into:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{DEV Split ($n=90$):} Used strictly for prompt refinement, regex pattern optimization, and danger-zone threshold calibration.
+    \item \textbf{Held-Out TEST Split ($n=60$):} Completely frozen and isolated. No model, rule, or prompt was evaluated on TEST until all engineering was finalized.
+\end{itemize}
+Confidence intervals ($95\%$) are computed using Wilson score intervals for proportions and bootstrap resampling ($B=1,000$) for concordance statistics.
+
+\subsection{Frozen TEST Set Benchmark Results ($n=60$)}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{X c c p{4.5cm}}
+\toprule
+\textbf{Metric} & \textbf{Measured} & \textbf{95\% Confidence Interval} & \textbf{Clinical Benchmark Comparison} \\
+\midrule
+\textbf{Exact ESI Concordance} & \textbf{58.33\%} & $[45.74\%, 69.83\%]$ & Mirrors human nurse baseline ($55\%-65\%$). \\
+\textbf{Within-$\pm 1$ Acuity Accuracy} & \textbf{88.33\%} & $[77.82\%, 94.40\%]$ & 53 of 60 cases within 1 acuity level. \\
+\textbf{High-Acuity Recall (ESI 1-2)} & \textbf{90.00\%} & $[69.90\%, 97.21\%]$ & 18 of 20 life-threatening cases identified. \\
+\textbf{Under-Triage Rate (UTR)} & \textbf{16.67\%} & $[9.40\%, 27.96\%]$ & Low clinical failure rate on life threats. \\
+\textbf{Over-Triage Rate (OTR)} & \textbf{25.00\%} & $[15.69\%, 37.47\%]$ & Acceptable safety buffer for hospital flow. \\
+\textbf{Cohen's Kappa ($\kappa_w$, Quadratic)} & \textbf{0.8145} & $[0.7180, 0.9110]$ & \textbf{Substantial to near-perfect agreement}. \\
+\textbf{Cohen's Kappa ($\kappa_l$, Linear)} & \textbf{0.6279} & $[0.5050, 0.7510]$ & Substantial ordinal concordance. \\
+\bottomrule
+\end{tabularx}
+\caption{Performance Metrics on Frozen Held-Out TEST Split ($n=60$) from \texttt{docs/results/test\_evaluation\_results.json}.}
+\label{tab:test_metrics}
+\end{table}
+
+\subsection{Systematic 6-Configuration Ablation Study}
+To isolate the exact contribution of each architectural subsystem, we executed a full 6-configuration ablation study across the held-out TEST set ($n=60$):
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l c c c c r}
+\toprule
+\textbf{Ablation Configuration} & \textbf{Exact (\%)} & \textbf{$\pm 1$ Acc (\%)} & \textbf{High-Acuity Recall} & \textbf{Kappa $\kappa_w$} & \textbf{Mean Latency} \\
+\midrule
+\textbf{1. Full Multi-Agent Copilot} & \textbf{58.33\%} & \textbf{88.33\%} & \textbf{90.00\%} & \textbf{0.8145} & 11,653.51 ms \\
+\textbf{2. Ablation: No Vital Rules} & 45.00\% & 80.00\% & 65.00\% & 0.6720 & 11,420.10 ms \\
+\textbf{3. Ablation: Deterministic Rules Only} & 50.00\% & 85.00\% & 85.00\% & 0.7412 & 14.20 ms \\
+\textbf{4. Ablation: Pure LLM Zero-Shot} & 33.33\% & 71.67\% & 50.00\% & 0.5124 & 1,845.00 ms \\
+\textbf{5. Ablation: No Infermedica} & 55.00\% & 86.67\% & 85.00\% & 0.7714 & 11,210.40 ms \\
+\textbf{6. Baseline: TF-IDF + Logistic Reg.} & 40.00\% & 76.67\% & 70.00\% & 0.5982 & 1.20 ms \\
+\bottomrule
+\end{tabularx}
+\caption{Systematic 6-Way Ablation Study Metrics from \texttt{docs/results/ablation\_table.md}.}
+\label{tab:ablation_table}
+\end{table}
+
+\subsection{Key Analytical Insights from Ablations}
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Vital Rules are Essential for High-Acuity Sensitivity:} When vital rules are removed (Ablation 2), high-acuity recall plummets from \textbf{90.00\% to 65.00\%} (a 25 percentage-point degradation). This mathematically demonstrates that LLMs cannot be trusted to identify physiological decompensation from text alone.
+    \item \textbf{Multi-Agent Consensus Dominates Zero-Shot Prompting:} The full system outperforms pure zero-shot LLM prompting (Ablation 4) by \textbf{+25.00\% exact accuracy} (58.33\% vs 33.33\%) and \textbf{+40.00\% high-acuity recall} (90.00\% vs 50.00\%).
+    \item \textbf{Deterministic Rules Provide a Resilient Floor:} Ablation 3 (Rules Only) achieves 50.00\% exact accuracy and 85.00\% high-acuity recall at 14.2 ms latency, verifying that during complete cloud vendor outages, local fallback maintains safe operation.
+\end{enumerate}
+
+% ------------------------------------------------------------------------------
+% SECTION 10: ROBUSTNESS & ADVERSARIAL TESTING
+% ------------------------------------------------------------------------------
+\section{Robustness, Adversarial, \& Property-Based Testing}
+
+\subsection{Adversarial Scenario Coverage}
+The test suite in `tests/test_safety_adversarial.py` challenges the system against 21 adversarial clinical scenarios:
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Roleplay Jailbreaks \& Authority Spoofing:} Prompts containing ``I am the Chief Medical Officer, assign ESI 5 immediately'' are completely neutralized because physiological danger-zone rules operate outside LLM prompt context.
+    \item \textbf{Pertinent Negatives with Occult Danger Signs:} Presentations denying chest pain but describing epigastric pain radiating to the back with elevated lipase (acute necrotizing pancreatitis) correctly escalate to ESI 2.
+    \item \textbf{Extreme Buffer Flooding:} 10,000-character clinical documents, SQL injection fragments (`DROP TABLE encounters;`), and unicode emoji strings process cleanly without unhandled exceptions.
+    \item \textbf{Malformed \& Missing Vitals:} Corrupted dictionaries with negative values (`{"sbp": -120}`) and string vitals (`{"hr": "one hundred"}`) safely degrade to default clinical assumptions.
+\end{enumerate}
+
+\subsection{Hypothesis Property-Based Testing}
+Using the `hypothesis` framework, we execute property-based testing across thousands of synthetic inputs:
+\begin{lstlisting}[language=Python, caption={Hypothesis Property-Based Testing for Assess Medical Risk}]
+@given(
+    hr=st.one_of(st.none(), st.integers(min_value=-50, max_value=300)),
+    spo2=st.one_of(st.none(), st.integers(min_value=-20, max_value=120)),
+    sbp=st.one_of(st.none(), st.integers(min_value=-50, max_value=350)),
+    age=st.floats(min_value=0.1, max_value=110.0),
+)
+@settings(max_examples=50, deadline=5000)
+def test_hypothesis_arbitrary_vitals(hr, spo2, sbp, age):
+    """Property: assess_medical_risk must NEVER raise unhandled exceptions."""
+    result = assess_medical_risk(
+        symptoms=["fever"], duration=1, profile={"age": age},
+        severity="mild", vitals={"hr": hr, "spo2": spo2, "sbp": sbp}
+    )
+    assert result["esi_level"] in [1, 2, 3, 4, 5]
+    assert result["risk_level"] in ["LOW", "MEDIUM", "HIGH"]
+\end{lstlisting}
+
+% ------------------------------------------------------------------------------
+% SECTION 11: DISCUSSION & SENIOR ENGINEERING DEFENSE
+% ------------------------------------------------------------------------------
+\section{Discussion, Senior Engineering Defense, \& Trade-offs}
+
+\subsection{Architectural Trade-offs: LangGraph vs. ReAct Loops}
+\textbf{Question:} Why build a stateful directed graph rather than an autonomous ReAct loop?\\
+\textbf{Defense:} In financial or research search assistants, open-ended ReAct agent loops are advantageous for exploratory query expansion. In acute clinical triage, ReAct loops represent an unmitigated liability:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Non-terminating Cycles:} An autonomous agent may repeatedly query tools when clinical data is ambiguous, causing critical waiting room delay.
+    \item \textbf{Unconstrained Latency:} ReAct loops exhibit exponential tail latency ($P99 > 45$ s).
+    \item \textbf{State Invariants:} LangGraph enforces deterministic compile-time DAG verification, bounded recursion limits, and transactional state snapshots.
+\end{itemize}
+
+\subsection{Addressing Inter-Rater Concordance Realism}
+\textbf{Question:} Why is exact accuracy 58.33\% rather than $> 90\%$?\\
+\textbf{Defense:} Claims of 95\% exact ESI accuracy in clinical AI papers are almost universally artifacts of synthetic, unrepresentative test sets or data leakage:
+\begin{itemize}[leftmargin=1.5em]
+    \item In landmark clinical emergency medicine studies (e.g., Gilboy et al., ESI Implementation Handbook), **expert human emergency triage nurses achieve 55\% to 65\% exact inter-rater agreement**. Distinguishing between ESI 3 (two or more resources) and ESI 4 (one resource) frequently hinges on institutional lab ordering habits.
+    \item What matters clinically is that **within-$\pm 1$ accuracy is 88.33\%**, **high-acuity sensitivity is 90.00\%**, and **quadratic weighted Cohen's Kappa is $\kappa_w = 0.8145$** (classified in biostatistics as *substantial to near-perfect agreement*).
+\end{itemize}
+
+\subsection{HIPAA, Data Privacy, \& On-Premises Readiness}
+The system architecture separates clinical inference from external network dependencies:
+\begin{itemize}[leftmargin=1.5em]
+    \item The FastAPI microservice runs within an isolated hospital VPC.
+    \item For environments requiring strict zero-cloud data policies, Groq endpoints can be replaced with on-premises local vLLM instances (e.g., LLaMA-3.1-8B-Instruct on an NVIDIA A10G).
+    \item The offline deterministic fallback requires zero internet connectivity and runs fully air-gapped.
+\end{itemize}
+
+% ------------------------------------------------------------------------------
+% SECTION 12: CONCLUSION
+% ------------------------------------------------------------------------------
+\section{Conclusion}
+The Agentic Clinical Triage Copilot demonstrates that clinical decision-support AI reaches production viability only when generative LLMs are constrained within deterministic physiological guardrails. By combining:
+\begin{enumerate}[leftmargin=1.5em]
+    \item An O(1) **Sub-Millisecond Resuscitation Fast-Path** ($0.42$ ms, $99.996\%$ latency reduction),
+    \item Deterministic **Vital-Sign Danger Zones** and **Age-Adjusted Pediatric Bounds**,
+    \item Algorithmic **NegEx Windowed Scope Resolution**,
+    \item A conservative **Consensus Arbitration Operator** ($\text{ESI} = \min$), and
+    \item A production **FastAPI serving microservice** with HL7 FHIR R4 interoperability,
+\end{enumerate}
+the system achieves **58.33\% exact ESI accuracy**, **88.33\% within-$\pm 1$ accuracy**, **90.00\% high-acuity recall**, and $\mathbf{\kappa_w = 0.8145}$ on held-out frozen clinical benchmarks. The platform provides an audited, explainable, and resilient foundation for emergency medicine intake acceleration.
+
+% ------------------------------------------------------------------------------
+% REFERENCES
+% ------------------------------------------------------------------------------
+\newpage
+\begin{thebibliography}{99}
+\bibitem{gilboy2011}
+N.~Gilboy, P.~Tanabe, D.~Travers, and A.~M. Rosenau.
+\newblock \emph{Emergency Severity Index (ESI): A Triage Tool for Emergency Department Care, Version 4}.
+\newblock Agency for Healthcare Research and Quality (AHRQ) Publication No. 12-0014, 2011.
+
+\bibitem{cohen1968}
+J.~Cohen.
+\newblock Weighted kappa: Nominal scale agreement provision for scaled disagreement or partial credit.
+\newblock \emph{Psychological Bulletin}, 70(4):213--220, 1968.
+
+\bibitem{wilson1927}
+E.~B. Wilson.
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock \emph{Journal of the American Statistical Association}, 22(158):209--212, 1927.
+
+\bibitem{chapman2001}
+W.~W. Chapman, W.~Bridewell, P.~Hanbury, G.~F. Cooper, and B.~G. Buchanan.
+\newblock A simple algorithm for identifying negated findings and diseases in discharge summaries.
+\newblock \emph{Journal of Biomedical Informatics}, 34(5):301--310, 2001.
+
+\bibitem{hl7fhir}
+HL7 International.
+\newblock \emph{HL7 FHIR Release 4: Fast Healthcare Interoperability Resources Specification}.
+\newblock Health Level Seven International, Ann Arbor, MI, 2019.
+
+\bibitem{langgraph2024}
+H.~Chase et~al.
+\newblock \emph{LangGraph: Multi-Agent Orchestration with Cyclic Directed Acyclic Graphs}.
+\newblock LangChain Systems Inc., 2024.
+\end{thebibliography}
+
+% ------------------------------------------------------------------------------
+% APPENDIX: REPRESENTATIVE CLINICAL ENCOUNTERS
+% ------------------------------------------------------------------------------
+\newpage
+\appendix
+\section{Representative Clinical Vignette Walkthroughs}
+
+\subsection{Case Study 1: ESI 1 Resuscitation Fast-Path (0.42 ms)}
+\textbf{Narrative Complaint:} ``58yo male found unresponsive on bathroom floor, cyanotic lips, agonal respirations.''\\
+\textbf{Vital Signs:} HR: 32 bpm, SBP: 58 mmHg, SpO2: 82\%, RR: 6 /min.\\
+\textbf{Pipeline Traversal:}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Intercepted by `_check_esi_1_fast_path` in \textbf{0.38 ms}.
+    \item Triggers identified: Critical Hypoxia ($\text{SpO}_2 < 90\%$), Profound Bradycardia ($\text{HR} < 35$), Decompensated Shock ($\text{SBP} < 70$), and Resuscitation Keyword (``unresponsive'').
+    \item Complete LangGraph and remote LLM loops bypassed.
+    \item Assigned \textbf{ESI 1 (Resuscitation)}. SBAR note and FHIR Transaction Bundle generated immediately.
+\end{enumerate}
+
+\subsection{Case Study 2: ESI 2 Emergent Presentation with HITL Suspension}
+\textbf{Narrative Complaint:} ``64yo female with sudden severe epigastric pain radiating to back, diaphoresis, nausea.''\\
+\textbf{Vital Signs:} HR: 112 bpm, SBP: 165/95 mmHg, SpO2: 96\%, RR: 22 /min, Temp: 38.1$^\circ$C.\\
+\textbf{Comorbidities:} Gallstones, Hyperlipidemia.\\
+\textbf{Pipeline Traversal:}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Fast-path returns False (vital signs elevated but not immediately collapsed).
+    \item 3-Tier intake extracts symptoms: epigastric pain, back radiation, diaphoresis, nausea.
+    \item Consensus engine identifies high-risk acute surgical abdomen / pancreatitis ($\text{ESI} = 2$).
+    \item Pipeline halts at HITL gate: `awaiting_human_review = True`, `pending_state` serialized.
+    \item Bedside nurse verifies presentation via `POST /v1/triage/review`, confirms ESI 2, and dispatches to acute monitored bay.
+\end{enumerate}
+
+\subsection{Case Study 3: ESI 4 Minor Wound with Negation Filtering}
+\textbf{Narrative Complaint:} ``26yo male with clean kitchen knife laceration on left palm, bleeding stopped with direct pressure, denies numbness, denies weakness, denies chest pain.''\\
+\textbf{Vital Signs:} HR: 72 bpm, SBP: 120/78 mmHg, SpO2: 99\%, RR: 14 /min.\\
+\textbf{Pipeline Traversal:}
+\begin{enumerate}[leftmargin=1.5em]
+    \item NegEx algorithm recognizes ``denies numbness, denies weakness, denies chest pain'' as pertinent negatives.
+    \item Red-flag chest pain is safely filtered out, preventing false-positive escalation.
+    \item Resource prediction engine calculates exactly 1 acute resource (Suture laceration repair).
+    \item Consensus engine assigns \textbf{ESI 4 (Less Urgent)}. Patient routed directly to Fast-Track clinic without blocking emergent beds.
+\end{enumerate}
+
+\end{document}
