@@ -19,6 +19,7 @@ env/
 architecture_diagram.dot
 architecture_diagram.svg
 scratch/
+docs/results/*cache.json
 docs/smart_triage_presentation.*
 scripts/build_presentation_artifacts.py
 

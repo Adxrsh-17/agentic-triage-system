@@ -1,0 +1,170 @@
+{
+  "config_1_full_system": {
+    "config_name": "Full Multi-Agent Copilot (Proposed)",
+    "description": "3-tier intake, physiological danger zones, consensus arbitration, resource prediction",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 58.33,
+      "exact_accuracy_95ci": [
+        0.45728081022640116,
+        0.6993572144165839
+      ],
+      "within_1_accuracy_pct": 88.33,
+      "within_1_accuracy_95ci": [
+        0.7782121197582914,
+        0.9423227935994396
+      ],
+      "high_acuity_recall_pct": 83.33,
+      "high_acuity_recall_95ci": [
+        0.6414692935030094,
+        0.9332132367136705
+      ],
+      "esi_1_recall_pct": 83.33,
+      "under_triage_rate_pct": 36.67,
+      "over_triage_rate_pct": 5.0,
+      "cohen_kappa_quadratic": 0.8145,
+      "cohen_kappa_linear": 0.6796,
+      "mean_latency_ms": 5274.4
+    }
+  },
+  "config_2_no_vitals": {
+    "config_name": "Ablation: No Vitals Danger-Zone Rules",
+    "description": "Text complaint only; objective physiological vital signs danger rules disabled",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 46.67,
+      "exact_accuracy_95ci": [
+        0.34627906041438494,
+        0.5910657297284211
+      ],
+      "within_1_accuracy_pct": 78.33,
+      "within_1_accuracy_95ci": [
+        0.6637997242680521,
+        0.868769559518097
+      ],
+      "high_acuity_recall_pct": 58.33,
+      "high_acuity_recall_95ci": [
+        0.38834665865228757,
+        0.7553239739018824
+      ],
+      "esi_1_recall_pct": 41.67,
+      "under_triage_rate_pct": 45.0,
+      "over_triage_rate_pct": 8.33,
+      "cohen_kappa_quadratic": 0.5018,
+      "cohen_kappa_linear": 0.4551,
+      "mean_latency_ms": 4815.3
+    }
+  },
+  "config_3_no_infermedica": {
+    "config_name": "Ablation: No Infermedica Ontology",
+    "description": "Internal heuristic rules + LLM intake only; external clinical ontology disabled",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 58.33,
+      "exact_accuracy_95ci": [
+        0.45728081022640116,
+        0.6993572144165839
+      ],
+      "within_1_accuracy_pct": 88.33,
+      "within_1_accuracy_95ci": [
+        0.7782121197582914,
+        0.9423227935994396
+      ],
+      "high_acuity_recall_pct": 83.33,
+      "high_acuity_recall_95ci": [
+        0.6414692935030094,
+        0.9332132367136705
+      ],
+      "esi_1_recall_pct": 83.33,
+      "under_triage_rate_pct": 36.67,
+      "over_triage_rate_pct": 5.0,
+      "cohen_kappa_quadratic": 0.8145,
+      "cohen_kappa_linear": 0.6796,
+      "mean_latency_ms": 4197.9
+    }
+  },
+  "config_4_rules_only": {
+    "config_name": "Ablation: Deterministic Rules Only (Offline)",
+    "description": "Deterministic keyword/regex parser + vitals danger rules; zero LLM / network calls",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 58.33,
+      "exact_accuracy_95ci": [
+        0.45728081022640116,
+        0.6993572144165839
+      ],
+      "within_1_accuracy_pct": 88.33,
+      "within_1_accuracy_95ci": [
+        0.7782121197582914,
+        0.9423227935994396
+      ],
+      "high_acuity_recall_pct": 83.33,
+      "high_acuity_recall_95ci": [
+        0.6414692935030094,
+        0.9332132367136705
+      ],
+      "esi_1_recall_pct": 83.33,
+      "under_triage_rate_pct": 36.67,
+      "over_triage_rate_pct": 5.0,
+      "cohen_kappa_quadratic": 0.8145,
+      "cohen_kappa_linear": 0.6796,
+      "mean_latency_ms": 855.3
+    }
+  },
+  "config_5_zero_shot_llm": {
+    "config_name": "Ablation: Pure LLM Zero-Shot Prompt",
+    "description": "Direct single-prompt triage to LLM; no multi-agent graph or deterministic guards",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 21.67,
+      "exact_accuracy_95ci": [
+        0.13123044048190305,
+        0.33620027573194783
+      ],
+      "within_1_accuracy_pct": 61.67,
+      "within_1_accuracy_95ci": [
+        0.4901759582409993,
+        0.7291172762591798
+      ],
+      "high_acuity_recall_pct": 4.17,
+      "high_acuity_recall_95ci": [
+        0.0073934561655057815,
+        0.20241806478655938
+      ],
+      "esi_1_recall_pct": 8.33,
+      "under_triage_rate_pct": 38.33,
+      "over_triage_rate_pct": 40.0,
+      "cohen_kappa_quadratic": 0.0645,
+      "cohen_kappa_linear": 0.0385,
+      "mean_latency_ms": 827.1
+    }
+  },
+  "config_6_ml_baseline": {
+    "config_name": "Learned Baseline: TF-IDF + Logistic Regression",
+    "description": "Supervised tabular + TF-IDF model trained on DEV split (n=90), evaluated on TEST (n=60)",
+    "metrics": {
+      "n_samples": 60,
+      "exact_accuracy_pct": 86.67,
+      "exact_accuracy_95ci": [
+        0.7583484032350039,
+        0.9308589051941303
+      ],
+      "within_1_accuracy_pct": 98.33,
+      "within_1_accuracy_95ci": [
+        0.886362257256914,
+        0.990810680743802
+      ],
+      "high_acuity_recall_pct": 95.83,
+      "high_acuity_recall_95ci": [
+        0.0,
+        0.0
+      ],
+      "esi_1_recall_pct": 91.67,
+      "under_triage_rate_pct": 8.33,
+      "over_triage_rate_pct": 5.0,
+      "cohen_kappa_quadratic": 0.9046,
+      "cohen_kappa_linear": 0.8857,
+      "mean_latency_ms": 1.2
+    }
+  }
+}
