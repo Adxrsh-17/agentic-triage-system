@@ -256,12 +256,12 @@ Every triage decision generates a compliant HL7 FHIR R4 Transaction Bundle conta
 2. What matters critically for clinical safety is **Within-±1 accuracy (88.33%)**, **High-Acuity Recall (90.00%)**, and **Quadratic Weighted Kappa ($\kappa = 0.8145$)**. A Kappa of 0.8145 is classified in biostatistics as *substantial to near-perfect agreement*.
 3. Furthermore, no patient is placed into a bed based solely on the AI: all high-acuity recommendations require nurse verification via the HITL gate.
 
-### Q5: How do you address HIPAA and patient privacy compliance in this architecture?
+### Q5: How do you address patient privacy and data protection in this architecture?
 **Answer:**
-1. The FastAPI microservice runs within an isolated VPC or on-premise hospital network.
-2. In production deployment, LLM endpoints can be pointed to HIPAA-compliant private endpoints (e.g., Azure OpenAI HIPAA BAA or local vLLM instances).
-3. The offline rules and FHIR generation execute entirely locally without transmitting PHI across external networks.
-4. The audit logger stores encounter data with local encryption at rest and role-based access control.
+1. In this prototype, all evaluation data is synthetic. If productionized, it would require de-identification, consent, encryption and audit logging (not implemented here).
+2. The offline rules and FHIR generation execute entirely locally without transmitting data across external networks.
+3. For clinical deployment, LLM endpoints would require local on-premises instances (e.g., local vLLM on hospital GPUs) or private healthcare cloud endpoints with formal Business Associate Agreements.
+4. The audit logger stores encounter data locally for forensic review.
 
 ---
 
@@ -271,4 +271,4 @@ Every triage decision generates a compliant HL7 FHIR R4 Transaction Bundle conta
 2. **Reproducible Empirical Artifacts:** Every benchmark number backed by generated JSON/CSV files in `docs/results/`.
 3. **Sub-Millisecond Resuscitation Fast-Path:** Reduced ESI 1 latency from 11,653 ms to 0.42 ms (99.996% speedup).
 4. **NegEx Clinical Scope Resolution:** Full conjunction and clause boundary parsing eliminating false-positive red flags.
-5. **Production Packaging:** Clean PEP 517/621 `pyproject.toml`, CLI entry points, and production FastAPI serving layer.
+5. **Modular Packaging:** Clean PEP 517/621 `pyproject.toml`, CLI entry points, and FastAPI serving layer.

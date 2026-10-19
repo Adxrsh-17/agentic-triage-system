@@ -1,4 +1,4 @@
-# Clinical Safety, Ethics, & Governance Framework
+# Safety Notes, Ethics, and Governance Limitations
 
 **Smart Triage AI:** Clinical Decision Support Research Prototype  
 **Scope:** Educational and Engineering Demonstration $\vert$ Non-Diagnostic  
@@ -42,13 +42,13 @@ In safety-critical healthcare AI, cataloging potential failure modes is essentia
 
 ---
 
-## 4. Patient Privacy, PII, & HIPAA Compliance in Production
+## 4. Patient Privacy, Data Protection & Production Requirements
 
-In this open-source prototype, all data is synthetic. In a hospital production setting, the following security controls are required:
-- **On-Premises / Private VPC Hosting:** The FastAPI microservice and vector store must reside within a dedicated HIPAA-compliant Virtual Private Cloud or on-premises hospital cluster.
-- **Local Private Inference:** External public LLM APIs should be replaced with local, air-gapped models (e.g., vLLM hosting LLaMA-3.1-8B-Instruct on hospital GPUs) to ensure zero Protected Health Information (PHI) crosses network boundaries.
-- **Audit Logging & Event Sourcing:** Every interaction, nurse override, and acuity score is permanently recorded in append-only logs for clinical quality assurance and forensic review.
-- **De-Identification:** Automated de-identification pipelines (Safe Harbor method under HIPAA) should strip names, addresses, and medical record numbers prior to vector indexing.
+In this open-source prototype, all data is synthetic. If productionized, would require de-identification, consent, encryption and audit logging (not implemented here):
+- **On-Premises / Private VPC Hosting:** The prototype microservice and vector store would need to reside within a dedicated, secure Virtual Private Cloud or on-premises hospital cluster.
+- **Local Private Inference:** External public LLM APIs should be replaced with local, air-gapped models (e.g., vLLM hosting open weights on hospital GPUs) to ensure zero Protected Health Information (PHI) crosses external boundaries.
+- **Audit Logging & Event Sourcing:** Every interaction, nurse override, and acuity score is recorded in append-only logs for quality assurance and forensic review.
+- **De-Identification:** Automated de-identification pipelines (Safe Harbor method) should strip names, addresses, and medical record numbers prior to vector indexing.
 
 ---
 

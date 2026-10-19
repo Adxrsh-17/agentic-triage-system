@@ -26,7 +26,7 @@ app = FastAPI(
     title="Agentic Clinical Triage Copilot API",
     version="1.0.0",
     description=(
-        "Production-grade Clinical Triage Microservice powered by LangGraph multi-agent orchestration, "
+        "Clinical Triage Assistant Prototype microservice powered by LangGraph multi-agent orchestration, "
         "ESI v4 consensus triage, vital-sign danger-zone safeguards, HL7 FHIR R4 Bundle generation, "
         "and sub-millisecond ESI 1 resuscitation fast-pathing."
     ),

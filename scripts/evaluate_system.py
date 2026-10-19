@@ -5,8 +5,8 @@ clinical vignettes across ESI Levels 1-5, vital signs danger zone escalation,
 SBAR clinical note generation, HL7 FHIR R4 interoperability, and latency profiling.
 
 Benchmarks:
-- Exact ESI Classification Accuracy (compared to human nurse baseline of 55-65%)
-- Within-1 Level Acuity Accuracy (compared to human nurse baseline of 85-92%)
+- Exact ESI Classification Accuracy
+- Within-1 Level Acuity Accuracy
 - High-Acuity Emergency Sensitivity / Recall (ESI 1-2)
 - Under-Triage Rate (UTR) against ACEP < 5% standard
 - Over-Triage Rate (OTR)
@@ -54,7 +54,7 @@ class ClinicalVignette:
     clinical_rationale: str = ""
 
 
-# 45 Clinically validated vignettes spanning ESI Levels 1-5 (9 per level)
+# 45 Standardized synthetic vignettes spanning ESI Levels 1-5 (9 per level)
 BENCHMARK_DATASET: List[ClinicalVignette] = [
     # ── ESI 1: Resuscitation (Immediate Life Threat) ──────────────────────────
     ClinicalVignette(

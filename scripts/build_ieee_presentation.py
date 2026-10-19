@@ -1002,11 +1002,11 @@ def create_presentation():
         p_d.space_after = Pt(6)
 
     # ==========================================
-    # SLIDE 21: Scalability, Security & HIPAA Compliance
+    # SLIDE 21: Scalability, Security & Data Privacy
     # ==========================================
     s21 = prs.slides.add_slide(blank_layout)
     set_slide_background(s21)
-    add_header(s21, "System Scalability, Security & HIPAA Privacy Compliance", "Security & Governance", 21)
+    add_header(s21, "System Scalability, Security & Data Privacy Architecture", "Security & Governance", 21)
 
     sec_cards = [
         ("🔒 Zero-PHI Retention in LLM", "No Protected Health Information (PHI) or personal identifiers are transmitted or logged in external LLM prompts; only anonymized clinical vectors are processed.", IEEE_BLUE),

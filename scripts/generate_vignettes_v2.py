@@ -1,6 +1,6 @@
 """
 Clinical Vignette Dataset Generator (v2).
-Generates 150 standardized, clinically validated emergency and clinic triage vignettes
+Generates 150 standardized synthetic emergency and clinic triage vignettes
 (30 cases per ESI level 1 through 5) formatted to the Emergency Severity Index (ESI v4) standard.
 
 Stratification:

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentic-triage-copilot"
 version = "1.0.0"
-description = "Production-grade LangGraph Multi-Agent Clinical Triage Copilot with ESI v4 Consensus, HITL Safety Gates, HL7 FHIR R4, and Sub-Millisecond Resuscitation Fast-Path"
+description = "Prototype LangGraph Multi-Agent Clinical Triage Copilot with ESI v4 Consensus, HITL Safety Gates, HL7 FHIR R4, and Sub-Millisecond Resuscitation Fast-Path"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}

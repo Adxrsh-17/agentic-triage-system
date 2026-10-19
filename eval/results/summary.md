@@ -17,7 +17,6 @@ Generated automatically by `eval/run_eval.py` on 2026-10-19 07:45:21.
 | Over-Triage Rate (%) (Type I) | 5.0% | Not Evaluated | Not Evaluated |
 | Latency P50 (ms) | 0.19 ms | Not Evaluated | Not Evaluated |
 | Latency P95 (ms) | 2.57 ms | Not Evaluated | Not Evaluated |
-| LLM vs Rules Disagreement Rate (%) | 0.0% | Not Evaluated | Not Evaluated |
 
 ## Key Clinical Findings
 

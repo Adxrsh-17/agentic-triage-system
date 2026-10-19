@@ -1,4 +1,4 @@
-"""Triage Nurse Copilot · Clinical Decision Support Workstation.
+"""Triage Nurse Copilot · Triage assistant prototype.
 
 A decision-support tool for triage nurses in busy emergency departments and clinics that:
 - Structures free-text chief complaints into clinical concepts
@@ -34,7 +34,7 @@ logger = logging.getLogger("triage-nurse-copilot")
 # Page Configuration & Design System
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Triage Nurse Copilot | Clinical Decision Support",
+    page_title="Triage Nurse Copilot | Triage Assistant Prototype",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",

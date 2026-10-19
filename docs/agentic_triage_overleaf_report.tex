@@ -132,7 +132,7 @@
 \vspace*{1.0cm}
 
 {\Huge \bfseries \color{MedNavy} Agentic Clinical Triage Copilot}\\[0.4cm]
-{\LARGE \bfseries \color{MedSlate} Production-Grade Multi-Agent Decision Support System}\\[0.3cm]
+{\LARGE \bfseries \color{MedSlate} Prototype Multi-Agent Decision Support System}\\[0.3cm]
 {\large \color{MedCyan} Emergency Severity Index (ESI v4) Consensus, Deterministic Safety Guardrails, \\ Sub-Millisecond Resuscitation Fast-Pathing, and HL7 FHIR R4 Interoperability}\\[1.5cm]
 
 \begin{tikzpicture}
@@ -559,7 +559,7 @@ Confidence intervals ($95\%$) are computed using Wilson score intervals for prop
 \toprule
 \textbf{Metric} & \textbf{Measured} & \textbf{95\% Confidence Interval} & \textbf{Clinical Benchmark Comparison} \\
 \midrule
-\textbf{Exact ESI Concordance} & \textbf{58.33\%} & $[45.74\%, 69.83\%]$ & Mirrors human nurse baseline ($55\%-65\%$). \\
+\textbf{Exact ESI Concordance} & \textbf{58.33\%} & $[45.74\%, 69.83\%]$ & Multi-class exact agreement on test set. \\
 \textbf{Within-$\pm 1$ Acuity Accuracy} & \textbf{88.33\%} & $[77.82\%, 94.40\%]$ & 53 of 60 cases within 1 acuity level. \\
 \textbf{High-Acuity Recall (ESI 1-2)} & \textbf{90.00\%} & $[69.90\%, 97.21\%]$ & 18 of 20 life-threatening cases identified. \\
 \textbf{Under-Triage Rate (UTR)} & \textbf{16.67\%} & $[9.40\%, 27.96\%]$ & Low clinical failure rate on life threats. \\
@@ -657,7 +657,7 @@ def test_hypothesis_arbitrary_vitals(hr, spo2, sbp, age):
     \item What matters clinically is that **within-$\pm 1$ accuracy is 88.33\%**, **high-acuity sensitivity is 90.00\%**, and **quadratic weighted Cohen's Kappa is $\kappa_w = 0.8145$** (classified in biostatistics as *substantial to near-perfect agreement*).
 \end{itemize}
 
-\subsection{HIPAA, Data Privacy, \& On-Premises Readiness}
+\subsection{Patient Privacy, Data Protection, \& On-Premises Considerations}
 The system architecture separates clinical inference from external network dependencies:
 \begin{itemize}[leftmargin=1.5em]
     \item The FastAPI microservice runs within an isolated hospital VPC.

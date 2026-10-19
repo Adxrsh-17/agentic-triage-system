@@ -38,12 +38,12 @@ This document serves as an exhaustive technical specification and educational st
    - 4.3 Clinician Human-in-the-Loop (HITL) Sign-off Gate
    - 4.4 Thread-Safe Audit Logger & Concordance Engine (`agent/audit_logger.py`)
 5. [Interactive Web Application (`app.py`)](#5-interactive-web-application-apppy)
-   - 5.1 Streamlit Nurse Workstation UI Design System
+   - 5.1 Streamlit Triage Assistant Prototype UI Design System
    - 5.2 Server-Side State Management & 1-Click Preset Vignettes
 6. [Quantitative Evaluation & Empirical Benchmarks](#6-quantitative-evaluation--empirical-benchmarks)
    - 6.1 Evaluation Methodology (`scripts/evaluate_system.py`)
    - 6.2 Clinical Decision Support Key Performance Indicators (KPIs)
-   - 6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline
+   - 6.3 Contextualizing Accuracy and Inter-Rater Variability
    - 6.4 Confusion Matrix & Per-Class Acuity Performance
    - 6.5 System Latency Profile & Pipeline Turnaround Profiling
 7. [Automated Pipeline Testing Battery (`tests/test_multi_agent.py`)](#7-automated-pipeline-testing-battery-teststest_multi_agentpy)
@@ -112,7 +112,7 @@ $$	ext{is\_negative}(s) = \left[ \exists n \in 	ext{NegCues} : 	ext{dist}(n, s) 
 eg \exists c \in 	ext{ContrastiveCues} : 	ext{pos}(n) < 	ext{pos}(c) < 	ext{pos}(s) ight] 	ag{1}$$
 
 ### 2.2 45-Vignette Standardized Clinical Benchmark Dataset
-To establish rigorous, unvarnished empirical benchmarks, the platform implements a standardized evaluation dataset consisting of 45 clinically validated emergency patient vignettes (`scripts/evaluate_system.py`). The vignettes are evenly balanced across all 5 ESI tiers (9 cases per level) and incorporate explicit physiological vital sign sets (SpO2, HR, SBP, RR, Temp) reflecting real-world clinical presentations:
+To establish rigorous, unvarnished empirical benchmarks, the platform implements a standardized evaluation dataset consisting of 45 standardized synthetic emergency patient vignettes (`scripts/evaluate_system.py`). The vignettes are evenly balanced across all 5 ESI tiers (9 cases per level) and incorporate explicit physiological vital sign sets (SpO2, HR, SBP, RR, Temp) reflecting real-world clinical presentations:
 - **ESI 1 (Resuscitation, $n=9$):** Cardiac arrest, anaphylactic airway obstruction, massive hematemesis with shock index > 1.0, severe respiratory failure.
 - **ESI 2 (Emergent, $n=9$):** Acute coronary syndrome (STEMI/NSTEMI), acute ischemic stroke within thrombolytic window, testicular torsion, suicidal ideation with plan.
 - **ESI 3 (Urgent, $n=9$):** Acute appendicitis with stable vitals, complex closed extremity fractures requiring reduction, pyelonephritis requiring multiple IV resources.
@@ -221,8 +221,8 @@ Every encounter is logged to `docs/triage_encounters_log.jsonl` with a thread-sa
 
 ## 5. Interactive Web Application (`app.py`)
 
-### 5.1 Streamlit Nurse Workstation UI Design System
-The web workstation is built with Streamlit and styled using a clean clinical dark-slate aesthetic (`#0F172A`). Key workstation features include:
+### 5.1 Streamlit Triage Assistant Prototype UI Design System
+The prototype web UI is built with Streamlit and styled using a clean clinical dark-slate aesthetic (`#0F172A`). Key prototype features include:
 1. **1-Click Clinical Preset Vignettes:** STEMI, Anaphylaxis, Stroke, Occult Hypoxia, Appendicitis, Sprain, Cold.
 2. **Real-Time Physiological Danger-Zone Warnings:** Dynamic visual warning pills whenever vitals cross physiological bounds.
 3. **Acuity Recommendation Card:** Standard clinical color badges (Red: ESI 1-2, Amber: ESI 3, Green: ESI 4-5).
@@ -236,7 +236,7 @@ The web workstation is built with Streamlit and styled using a clean clinical da
 ## 6. Quantitative Evaluation & Empirical Benchmarks
 
 ### 6.1 Evaluation Methodology (`scripts/evaluate_system.py`)
-The system was evaluated using an automated benchmarking suite across 45 standardized, clinically validated vignettes evenly distributed across ESI Levels 1 through 5 (9 cases per tier). Each vignette was executed through the full LangGraph pipeline with complete latency profiling, vitals danger-zone verification, and HL7 FHIR validation.
+The system was evaluated using an automated benchmarking suite across 45 standardized synthetic vignettes evenly distributed across ESI Levels 1 through 5 (9 cases per tier). Each vignette was executed through the full LangGraph pipeline with complete latency profiling, vitals danger-zone verification, and HL7 FHIR validation.
 
 ### 6.2 Clinical Decision Support Key Performance Indicators (KPIs)
 
@@ -255,7 +255,7 @@ The system was evaluated using an automated benchmarking suite across 45 standar
 
 *Table 3: Clinical Decision Support Key Performance Indicators (KPIs).*
 
-### 6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline
+### 6.3 Contextualizing Accuracy and Inter-Rater Variability
 A cornerstone insight from emergency medicine literature is that **human triage nurses do not exhibit 100% inter-rater agreement**. In prospective multicenter studies on the Emergency Severity Index (*Tanabe et al., Annals of Emergency Medicine; Dong et al., CJEM*):
 - **Exact Inter-Rater Agreement:** Experienced emergency nurses agree on exact ESI scores between **55.0% and 65.0%** of the time.
 - **Within-+-1 Level Agreement:** Experienced emergency nurses agree within one acuity level between **85.0% and 92.0%** of the time.

@@ -13,7 +13,7 @@
 | **Recall@3 (Top-3 Hit Rate)** | **95.0%** | > 90.0% (Clinical History Surfaced in Top 3) | **[PASSED] HIGH SENSITIVITY** |
 | **Recall@5 (Top-5 Hit Rate)** | **95.0%** | > 95.0% (Broad Safety Net) | **[PASSED] ROBUST SAFETY BUFFER** |
 | **NDCG@3** | **0.8262** | > 0.85 (Ranked Relevance Quality) | **[PASSED] VALIDATED** |
-| **Mean Retrieval Latency** | **23.82 ms** | < 100 ms (Real-Time Workstation Response) | **[PASSED] SUB-100MS TURNAROUND** |
+| **Mean Retrieval Latency** | **23.82 ms** | < 100 ms (Real-Time Interactive Response) | **[PASSED] SUB-100MS TURNAROUND** |
 | **P95 Retrieval Latency** | **25.74 ms** | P95 Turnaround | **[OPTIMAL FOR INTAKE]** |
 
 ---

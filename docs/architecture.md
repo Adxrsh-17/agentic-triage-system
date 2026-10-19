@@ -1,6 +1,6 @@
 # System Architecture & Technical Specifications
 
-**Smart Triage AI:** Production-grade Multi-Agent Decision-Support Copilot  
+**Smart Triage AI:** Prototype Multi-Agent Decision-Support Copilot  
 **Framework:** LangGraph `StateGraph` | **Standard:** Emergency Severity Index (ESI v4)  
 
 ---
@@ -28,7 +28,7 @@ sequenceDiagram
     participant Intake as Intake Node (LLM/Regex)
     participant Risk as Risk Assessment (Hybrid)
     participant SBAR as SBAR & FHIR Generator
-    participant UI as Nurse Workstation
+    participant UI as Nurse Triage UI
 
     Clinician->>FastPath: Ingest complaint ("Minor paper cut on index finger") + Vitals
     FastPath->>Intake: Stable vitals (SpO2 99%, HR 72, BP 120/80) -> Bypass Fast-Path
@@ -51,7 +51,7 @@ sequenceDiagram
     participant Gate as HITL Safety Gate
     participant SBAR as SBAR & FHIR Generator
     participant Audit as Audit Logger
-    participant UI as Nurse Workstation
+    participant UI as Nurse Triage UI
 
     Clinician->>FastPath: Ingest complaint ("Crushing chest pain radiating to left jaw, diaphoresis")
     FastPath->>Intake: Stable airway/vitals (SpO2 95%, HR 110, BP 165/95)

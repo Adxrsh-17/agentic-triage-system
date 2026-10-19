@@ -128,4 +128,4 @@ The execution call path from the user entry points (`app.py` and `api.py`) throu
                  └── [If Low-Risk / ESI 3-5]: finish_node (Completes and delivers payload)
 ```
 
-Both live workstation flows and batch evaluation runners route through the identical canonical implementations in `agent/nodes/intake.py`, `agent/nodes/risk.py`, and `agent/nodes/safety.py`.
+Both interactive UI flows and batch evaluation runners route through the identical canonical implementations in `agent/nodes/intake.py`, `agent/nodes/risk.py`, and `agent/nodes/safety.py`.

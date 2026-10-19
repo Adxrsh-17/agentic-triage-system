@@ -1,5 +1,5 @@
 """
-Production-grade Technical Study Guide & System Architecture Specification Generator.
+Technical Study Guide & System Architecture Specification Generator.
 Generates:
 1. docs/agentic_triage_technical_report.pdf (Publication-quality PDF matching user's template)
 2. docs/agentic_triage_technical_report.md (Full-length companion Markdown report for GitHub)
@@ -304,12 +304,12 @@ def build_pdf_study_guide():
         [Paragraph("&nbsp;&nbsp;4.3 Clinician Human-in-the-Loop (HITL) Sign-off Gate", style_normal), Paragraph("6", style_meta)],
         [Paragraph("&nbsp;&nbsp;4.4 Thread-Safe Audit Logger & Concordance Engine (agent/audit_logger.py)", style_normal), Paragraph("6", style_meta)],
         [Paragraph("<b>5 Interactive Web Application (app.py)</b>", style_normal), Paragraph("<b>7</b>", style_meta)],
-        [Paragraph("&nbsp;&nbsp;5.1 Streamlit Nurse Workstation UI Design System", style_normal), Paragraph("7", style_meta)],
+        [Paragraph("&nbsp;&nbsp;5.1 Streamlit Triage Assistant Prototype UI Design System", style_normal), Paragraph("7", style_meta)],
         [Paragraph("&nbsp;&nbsp;5.2 Server-Side State Management & 1-Click Preset Vignettes", style_normal), Paragraph("7", style_meta)],
         [Paragraph("<b>6 Quantitative Evaluation & Empirical Benchmarks</b>", style_normal), Paragraph("<b>7</b>", style_meta)],
         [Paragraph("&nbsp;&nbsp;6.1 Evaluation Methodology (scripts/evaluate_system.py)", style_normal), Paragraph("7", style_meta)],
         [Paragraph("&nbsp;&nbsp;6.2 Clinical Decision Support Key Performance Indicators (KPIs)", style_normal), Paragraph("7", style_meta)],
-        [Paragraph("&nbsp;&nbsp;6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline", style_normal), Paragraph("7", style_meta)],
+        [Paragraph("&nbsp;&nbsp;6.3 Contextualizing Accuracy and Inter-Rater Variability", style_normal), Paragraph("7", style_meta)],
         [Paragraph("&nbsp;&nbsp;6.4 Confusion Matrix & Per-Class Acuity Performance", style_normal), Paragraph("8", style_meta)],
         [Paragraph("&nbsp;&nbsp;6.5 System Latency Profile & Pipeline Turnaround Profiling", style_normal), Paragraph("8", style_meta)],
         [Paragraph("<b>7 Automated Pipeline Testing Battery (tests/test_multi_agent.py)</b>", style_normal), Paragraph("<b>9</b>", style_meta)],
@@ -443,7 +443,7 @@ def build_pdf_study_guide():
     story.append(Paragraph("2.2 45-Vignette Standardized Clinical Benchmark Dataset", style_h2))
     p2_2 = (
         "To establish rigorous, unvarnished empirical benchmarks, the platform implements a standardized evaluation dataset consisting of "
-        "45 clinically validated emergency patient vignettes (scripts/evaluate_system.py). The vignettes are evenly balanced across all 5 ESI tiers "
+        "45 standardized synthetic emergency patient vignettes (scripts/evaluate_system.py). The vignettes are evenly balanced across all 5 ESI tiers "
         "(9 cases per level) and incorporate explicit physiological vital sign sets (SpO2, HR, SBP, RR, Temp) reflecting real-world clinical presentations:"
     )
     story.append(Paragraph(p2_2, style_normal))
@@ -631,10 +631,10 @@ def build_pdf_study_guide():
     # SECTION 5: INTERACTIVE WEB APPLICATION & SECTION 6: BENCHMARKS
     # ─────────────────────────────────────────────────────────────────────────
     story.append(Paragraph("5 Interactive Web Application (app.py)", style_h1))
-    story.append(Paragraph("5.1 Streamlit Nurse Workstation UI Design System", style_h2))
+    story.append(Paragraph("5.1 Streamlit Triage Assistant Prototype UI Design System", style_h2))
     p5_1 = (
-        "The web workstation is built with Streamlit and styled using a clean clinical dark-slate aesthetic (#0F172A). "
-        "Key workstation features include: (1) 1-click loading of 7 standardized clinical preset vignettes (STEMI, Anaphylaxis, Stroke, "
+        "The prototype web UI is built with Streamlit and styled using a clean clinical dark-slate aesthetic (#0F172A). "
+        "Key prototype features include: (1) 1-click loading of 7 standardized clinical preset vignettes (STEMI, Anaphylaxis, Stroke, "
         "Occult Hypoxia, Appendicitis, Sprain, Cold); (2) Real-time physiological vital signs warning pills; (3) Acuity Recommendation Card "
         "with standard clinical color codes (Red: ESI 1-2, Amber: ESI 3, Green: ESI 4-5); (4) 'Why This Level?' rationale trace; (5) Nurse "
         "Sign-off & Override controls; (6) Interactive SBAR Note and HL7 FHIR R4 JSON viewer with 1-click download; and (7) Live Encounter Audit History."
@@ -644,7 +644,7 @@ def build_pdf_study_guide():
     story.append(Paragraph("6 Quantitative Evaluation & Empirical Benchmarks", style_h1))
     story.append(Paragraph("6.1 Evaluation Methodology (scripts/evaluate_system.py)", style_h2))
     p6_1 = (
-        "The system was evaluated using an automated benchmarking suite across 45 standardized, clinically validated vignettes evenly "
+        "The system was evaluated using an automated benchmarking suite across 45 standardized synthetic vignettes evenly "
         "distributed across ESI Levels 1 through 5 (9 cases per tier). Each vignette was executed through the full LangGraph pipeline "
         "with complete latency profiling, vitals danger-zone verification, and HL7 FHIR validation."
     )
@@ -657,7 +657,7 @@ def build_pdf_study_guide():
         [Paragraph("High-Acuity Recall (ESI 1-2)", style_normal), Paragraph("<b>100.0%</b>", style_normal), Paragraph("&gt; 98.0% (Zero-Miss Acute Standard)", style_normal), Paragraph("<b>[PASSED]</b>", style_normal)],
         [Paragraph("Under-Triage Rate (UTR)", style_normal), Paragraph("<b>17.78%</b>", style_normal), Paragraph("&lt; 5.0% (Mitigated to 0% via HITL)", style_normal), Paragraph("<b>[ALIGNED]</b>", style_normal)],
         [Paragraph("Over-Triage Rate (OTR)", style_normal), Paragraph("<b>20.0%</b>", style_normal), Paragraph("25.0% - 35.0% (Safe Conservatism)", style_normal), Paragraph("<b>[ALIGNED]</b>", style_normal)],
-        [Paragraph("Exact ESI Classification", style_normal), Paragraph("<b>62.22%</b>", style_normal), Paragraph("55.0% - 65.0% (Human Nurse Baseline)", style_normal), Paragraph("<b>[HUMAN-EQUIV]</b>", style_normal)],
+        [Paragraph("Exact ESI Classification", style_normal), Paragraph("<b>62.22%</b>", style_normal), Paragraph("55.0% - 65.0% (Inter-Rater Range)", style_normal), Paragraph("<b>[ALIGNED]</b>", style_normal)],
         [Paragraph("Within-&plusmn;1 ESI Level Accuracy", style_normal), Paragraph("<b>95.56%</b>", style_normal), Paragraph("85.0% - 92.0% (Nurse Inter-Rater)", style_normal), Paragraph("<b>[PASSED]</b>", style_normal)],
         [Paragraph("Nurse HITL Gate Sensitivity", style_normal), Paragraph("<b>100.0%</b>", style_normal), Paragraph("100.0% Gate Coverage on High Risk", style_normal), Paragraph("<b>[PASSED]</b>", style_normal)],
         [Paragraph("SBAR Clinical Note Generation", style_normal), Paragraph("<b>100.0%</b>", style_normal), Paragraph("100.0% Formatted SBAR Note", style_normal), Paragraph("<b>[PASSED]</b>", style_normal)],
@@ -677,7 +677,7 @@ def build_pdf_study_guide():
     story.append(t_kpi)
     story.append(Paragraph("Table 3: Clinical Decision Support Key Performance Indicators (KPIs)", style_caption))
 
-    story.append(Paragraph("6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline", style_h2))
+    story.append(Paragraph("6.3 Contextualizing Accuracy and Inter-Rater Variability", style_h2))
     p6_3 = (
         "A cornerstone insight from emergency medicine literature is that <b>human triage nurses do not exhibit 100% inter-rater agreement</b>. "
         "In prospective multicenter studies on the Emergency Severity Index (<i>Tanabe et al., Annals of Emergency Medicine; Dong et al., CJEM</i>): "
@@ -926,12 +926,12 @@ This document serves as an exhaustive technical specification and educational st
    - 4.3 Clinician Human-in-the-Loop (HITL) Sign-off Gate
    - 4.4 Thread-Safe Audit Logger & Concordance Engine (`agent/audit_logger.py`)
 5. [Interactive Web Application (`app.py`)](#5-interactive-web-application-apppy)
-   - 5.1 Streamlit Nurse Workstation UI Design System
+   - 5.1 Streamlit Triage Assistant Prototype UI Design System
    - 5.2 Server-Side State Management & 1-Click Preset Vignettes
 6. [Quantitative Evaluation & Empirical Benchmarks](#6-quantitative-evaluation--empirical-benchmarks)
    - 6.1 Evaluation Methodology (`scripts/evaluate_system.py`)
    - 6.2 Clinical Decision Support Key Performance Indicators (KPIs)
-   - 6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline
+   - 6.3 Contextualizing Accuracy and Inter-Rater Variability
    - 6.4 Confusion Matrix & Per-Class Acuity Performance
    - 6.5 System Latency Profile & Pipeline Turnaround Profiling
 7. [Automated Pipeline Testing Battery (`tests/test_multi_agent.py`)](#7-automated-pipeline-testing-battery-teststest_multi_agentpy)
@@ -999,7 +999,7 @@ In emergency triage, the absence of a symptom is frequently as diagnostic as its
 $$\text{is\_negative}(s) = \left[ \exists n \in \text{NegCues} : \text{dist}(n, s) \le 5 \land \neg \exists c \in \text{ContrastiveCues} : \text{pos}(n) < \text{pos}(c) < \text{pos}(s) \right] \tag{1}$$
 
 ### 2.2 45-Vignette Standardized Clinical Benchmark Dataset
-To establish rigorous, unvarnished empirical benchmarks, the platform implements a standardized evaluation dataset consisting of 45 clinically validated emergency patient vignettes (`scripts/evaluate_system.py`). The vignettes are evenly balanced across all 5 ESI tiers (9 cases per level) and incorporate explicit physiological vital sign sets (SpO2, HR, SBP, RR, Temp) reflecting real-world clinical presentations:
+To establish rigorous, unvarnished empirical benchmarks, the platform implements a standardized evaluation dataset consisting of 45 standardized synthetic emergency patient vignettes (`scripts/evaluate_system.py`). The vignettes are evenly balanced across all 5 ESI tiers (9 cases per level) and incorporate explicit physiological vital sign sets (SpO2, HR, SBP, RR, Temp) reflecting real-world clinical presentations:
 - **ESI 1 (Resuscitation, $n=9$):** Cardiac arrest, anaphylactic airway obstruction, massive hematemesis with shock index > 1.0, severe respiratory failure.
 - **ESI 2 (Emergent, $n=9$):** Acute coronary syndrome (STEMI/NSTEMI), acute ischemic stroke within thrombolytic window, testicular torsion, suicidal ideation with plan.
 - **ESI 3 (Urgent, $n=9$):** Acute appendicitis with stable vitals, complex closed extremity fractures requiring reduction, pyelonephritis requiring multiple IV resources.
@@ -1104,8 +1104,8 @@ Every encounter is logged to `docs/triage_encounters_log.jsonl` with a thread-sa
 
 ## 5. Interactive Web Application (`app.py`)
 
-### 5.1 Streamlit Nurse Workstation UI Design System
-The web workstation is built with Streamlit and styled using a clean clinical dark-slate aesthetic (`#0F172A`). Key workstation features include:
+### 5.1 Streamlit Triage Assistant Prototype UI Design System
+The prototype web UI is built with Streamlit and styled using a clean clinical dark-slate aesthetic (`#0F172A`). Key prototype features include:
 1. **1-Click Clinical Preset Vignettes:** STEMI, Anaphylaxis, Stroke, Occult Hypoxia, Appendicitis, Sprain, Cold.
 2. **Real-Time Physiological Danger-Zone Warnings:** Dynamic visual warning pills whenever vitals cross physiological bounds.
 3. **Acuity Recommendation Card:** Standard clinical color badges (Red: ESI 1-2, Amber: ESI 3, Green: ESI 4-5).
@@ -1119,7 +1119,7 @@ The web workstation is built with Streamlit and styled using a clean clinical da
 ## 6. Quantitative Evaluation & Empirical Benchmarks
 
 ### 6.1 Evaluation Methodology (`scripts/evaluate_system.py`)
-The system was evaluated using an automated benchmarking suite across 45 standardized, clinically validated vignettes evenly distributed across ESI Levels 1 through 5 (9 cases per tier). Each vignette was executed through the full LangGraph pipeline with complete latency profiling, vitals danger-zone verification, and HL7 FHIR validation.
+The system was evaluated using an automated benchmarking suite across 45 standardized synthetic vignettes evenly distributed across ESI Levels 1 through 5 (9 cases per tier). Each vignette was executed through the full LangGraph pipeline with complete latency profiling, vitals danger-zone verification, and HL7 FHIR validation.
 
 ### 6.2 Clinical Decision Support Key Performance Indicators (KPIs)
 
@@ -1138,7 +1138,7 @@ The system was evaluated using an automated benchmarking suite across 45 standar
 
 *Table 3: Clinical Decision Support Key Performance Indicators (KPIs).*
 
-### 6.3 Contextualizing Accuracy Against Human Emergency Nurse Baseline
+### 6.3 Contextualizing Accuracy and Inter-Rater Variability
 A cornerstone insight from emergency medicine literature is that **human triage nurses do not exhibit 100% inter-rater agreement**. In prospective multicenter studies on the Emergency Severity Index (*Tanabe et al., Annals of Emergency Medicine; Dong et al., CJEM*):
 - **Exact Inter-Rater Agreement:** Experienced emergency nurses agree on exact ESI scores between **55.0% and 65.0%** of the time.
 - **Within-+-1 Level Agreement:** Experienced emergency nurses agree within one acuity level between **85.0% and 92.0%** of the time.

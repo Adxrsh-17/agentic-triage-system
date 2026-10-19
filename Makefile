@@ -6,7 +6,7 @@ help:
 	@echo "  make test     - Run full pytest test suite"
 	@echo "  make lint     - Run Ruff linter"
 	@echo "  make eval     - Execute evaluation harness on frozen test split"
-	@echo "  make run      - Launch Streamlit nurse workstation UI"
+	@echo "  make run      - Launch Streamlit triage assistant prototype UI"
 	@echo "  make api      - Launch FastAPI REST serving microservice"
 
 install:

@@ -561,7 +561,7 @@ def format_pinecone_markdown_report(results: Dict[str, Any]) -> str:
         f"| **Recall@3 (Top-3 Hit Rate)** | **{summary['recall_at_3_pct']}%** | > 90.0% (Clinical History Surfaced in Top 3) | **[PASSED] HIGH SENSITIVITY** |",
         f"| **Recall@5 (Top-5 Hit Rate)** | **{summary['recall_at_5_pct']}%** | > 95.0% (Broad Safety Net) | **[PASSED] ROBUST SAFETY BUFFER** |",
         f"| **NDCG@3** | **{summary['ndcg_at_3']}** | > 0.85 (Ranked Relevance Quality) | **[PASSED] VALIDATED** |",
-        f"| **Mean Retrieval Latency** | **{summary['mean_retrieval_latency_ms']} ms** | < 100 ms (Real-Time Workstation Response) | **[PASSED] SUB-100MS TURNAROUND** |",
+        f"| **Mean Retrieval Latency** | **{summary['mean_retrieval_latency_ms']} ms** | < 100 ms (Real-Time Interactive Response) | **[PASSED] SUB-100MS TURNAROUND** |",
         f"| **P95 Retrieval Latency** | **{summary['p95_retrieval_latency_ms']} ms** | P95 Turnaround | **[OPTIMAL FOR INTAKE]** |",
         "",
         "---",

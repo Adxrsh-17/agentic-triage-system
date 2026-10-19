@@ -305,9 +305,14 @@ def write_summary_report(split: str = "test") -> None:
     ]
 
     for label, getter in metric_keys:
+        if "Disagreement" in label and "hybrid" not in summary_data:
+            continue
         row = f"| {label} |"
         for m in modes:
-            val = getter(summary_data[m]) if m in summary_data else "Not Evaluated"
+            if "Disagreement" in label and m != "hybrid":
+                val = "N/A (hybrid only)"
+            else:
+                val = getter(summary_data[m]) if m in summary_data else "Not Evaluated"
             row += f" {val} |"
         lines.append(row)
 
