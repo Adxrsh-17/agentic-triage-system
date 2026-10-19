@@ -21,6 +21,7 @@ architecture_diagram.svg
 scratch/
 docs/results/*cache.json
 docs/smart_triage_presentation.*
+docs/triage_encounters_log.jsonl
 scripts/build_presentation_artifacts.py
 
 # OS/editor files
