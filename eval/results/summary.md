@@ -1,6 +1,6 @@
 # Clinical Triage Copilot Evaluation Summary (TEST Split)
 
-Generated automatically by `eval/run_eval.py` on 2026-10-19 09:43:31.
+Generated automatically by `eval/run_eval.py` on 2026-10-19 09:57:36.
 
 ## Performance Comparison Across Execution Modes
 
@@ -15,8 +15,8 @@ Generated automatically by `eval/run_eval.py` on 2026-10-19 09:43:31.
 | Routine Recall (%) | 87.5% (21/24) [69.0%–95.7%] | Not Evaluated | Not Evaluated |
 | Under-Triage Rate (%) (Type II) | 28.33% | Not Evaluated | Not Evaluated |
 | Over-Triage Rate (%) (Type I) | 5.0% | Not Evaluated | Not Evaluated |
-| Latency P50 (ms) | 0.11 ms | Not Evaluated | Not Evaluated |
-| Latency P95 (ms) | 1.57 ms | Not Evaluated | Not Evaluated |
+| Latency P50 (ms) | 0.14 ms | Not Evaluated | Not Evaluated |
+| Latency P95 (ms) | 1.47 ms | Not Evaluated | Not Evaluated |
 
 ## Key Clinical Findings
 

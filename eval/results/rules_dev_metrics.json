@@ -1,0 +1,133 @@
+{
+  "n_samples": 90,
+  "accuracy_pct": 78.89,
+  "accuracy_ci_95": [
+    69.37,
+    86.05
+  ],
+  "accuracy_display": "78.9% (71/90) [69.4%\u201386.0%]",
+  "macro_f1_pct": 71.55,
+  "macro_f1_ci_95": [
+    60.94,
+    81.28
+  ],
+  "macro_f1_display": "71.5% [60.9%\u201381.3%]",
+  "emergency_recall_pct": 83.33,
+  "emergency_recall_display": "83.3% (30/36) [68.1%\u201392.1%]",
+  "emergency_precision_pct": 100.0,
+  "emergency_precision_display": "100.0% (30/30) [88.6%\u2013100.0%]",
+  "urgent_recall_pct": 33.33,
+  "urgent_recall_display": "33.3% (6/18) [16.3%\u201356.3%]",
+  "routine_recall_pct": 97.22,
+  "routine_recall_display": "97.2% (35/36) [85.8%\u201399.5%]",
+  "undertriage_rate_pct": 20.0,
+  "overtriage_rate_pct": 1.11,
+  "per_class": {
+    "emergency": {
+      "precision": 100.0,
+      "recall": 83.33,
+      "f1": 90.91,
+      "tp": 30,
+      "support": 36,
+      "pred_count": 30,
+      "recall_ci_95": [
+        68.11,
+        92.13
+      ],
+      "precision_ci_95": [
+        88.65,
+        100.0
+      ],
+      "recall_display": "83.3% (30/36) [68.1%\u201392.1%]",
+      "precision_display": "100.0% (30/30) [88.6%\u2013100.0%]"
+    },
+    "urgent": {
+      "precision": 54.55,
+      "recall": 33.33,
+      "f1": 41.38,
+      "tp": 6,
+      "support": 18,
+      "pred_count": 11,
+      "recall_ci_95": [
+        16.28,
+        56.25
+      ],
+      "precision_ci_95": [
+        28.01,
+        78.73
+      ],
+      "recall_display": "33.3% (6/18) [16.3%\u201356.3%]",
+      "precision_display": "54.5% (6/11) [28.0%\u201378.7%]"
+    },
+    "routine": {
+      "precision": 71.43,
+      "recall": 97.22,
+      "f1": 82.35,
+      "tp": 35,
+      "support": 36,
+      "pred_count": 49,
+      "recall_ci_95": [
+        85.83,
+        99.51
+      ],
+      "precision_ci_95": [
+        57.59,
+        82.15
+      ],
+      "recall_display": "97.2% (35/36) [85.8%\u201399.5%]",
+      "precision_display": "71.4% (35/49) [57.6%\u201382.2%]"
+    }
+  },
+  "confusion_matrix": {
+    "emergency": {
+      "emergency": 30,
+      "urgent": 4,
+      "routine": 2
+    },
+    "urgent": {
+      "emergency": 0,
+      "urgent": 6,
+      "routine": 12
+    },
+    "routine": {
+      "emergency": 0,
+      "urgent": 1,
+      "routine": 35
+    }
+  },
+  "mode": "rules",
+  "split": "dev",
+  "latency_p50_ms": 0.11,
+  "latency_p95_ms": 1.24,
+  "disagreement_rate_pct": 0.0,
+  "category_breakdown": {
+    "GI": {
+      "count": 9,
+      "accuracy_pct": 66.67
+    },
+    "cardiac": {
+      "count": 9,
+      "accuracy_pct": 55.56
+    },
+    "infection": {
+      "count": 5,
+      "accuracy_pct": 100.0
+    },
+    "injury": {
+      "count": 22,
+      "accuracy_pct": 72.73
+    },
+    "neuro": {
+      "count": 6,
+      "accuracy_pct": 83.33
+    },
+    "other": {
+      "count": 28,
+      "accuracy_pct": 85.71
+    },
+    "respiratory": {
+      "count": 11,
+      "accuracy_pct": 90.91
+    }
+  }
+}

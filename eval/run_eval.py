@@ -224,19 +224,46 @@ def evaluate_case(case: Dict[str, Any], mode: str) -> Tuple[str, float, bool]:
     return pred_label, latency_ms, disagreement
 
 
+def get_git_commit() -> str:
+    try:
+        import subprocess
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").strip()
+    except Exception:
+        return "unknown"
+
+
 def run_evaluation(mode: str = "hybrid", split: str = "test") -> Dict[str, Any]:
     """Execute full evaluation on the dataset for the chosen mode and split."""
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Evaluation dataset {DATA_FILE} does not exist.")
+    data_path = (EVAL_DIR / "holdout_cases.jsonl") if split == "holdout" else DATA_FILE
+    if not data_path.exists():
+        raise FileNotFoundError(f"Evaluation dataset {data_path} does not exist.")
 
     cases: List[Dict[str, Any]] = []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with open(data_path, "r", encoding="utf-8") as f:
         for line in f:
             if line.strip():
                 cases.append(json.loads(line))
 
-    if split != "all":
+    if split not in ("all", "holdout"):
         cases = [c for c in cases if c.get("split") == split]
+
+    # Guard and run logging for frozen splits
+    if split in ("test", "holdout"):
+        logger.warning(
+            "FROZEN SPLIT NOTICE: Evaluating '%s' split (%d cases). "
+            "This split is frozen for benchmark validation. Tuning rules on this split violates eval/SPLIT_POLICY.md.",
+            split, len(cases),
+        )
+        run_log_entry = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "mode": mode,
+            "split": split,
+            "git_commit": get_git_commit(),
+            "n_samples": len(cases),
+        }
+        run_log_file = RESULTS_DIR / "run_log.jsonl"
+        with open(run_log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(run_log_entry) + "\n")
 
     logger.info("Starting evaluation: Mode=%s, Split=%s, Count=%d", mode, split, len(cases))
 
@@ -376,7 +403,7 @@ def write_summary_report(split: str = "test") -> None:
     lines.append("2. **Zero-Downtime Offline Capability:** Even with external LLM APIs disabled, the deterministic rules safety floor provides dependable acuity scoring at sub-15ms latency.")
     lines.append("3. **Disagreement Tracking:** The hybrid consensus engine actively audits instances where generative predictions diverge from rule-based thresholds.")
 
-    summary_file = RESULTS_DIR / "summary.md"
+    summary_file = RESULTS_DIR / ("summary.md" if split == "test" else f"summary_{split}.md")
     with open(summary_file, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     logger.info("Saved evaluation summary to %s", summary_file)
@@ -387,7 +414,7 @@ def write_summary_report(split: str = "test") -> None:
 def main():
     parser = argparse.ArgumentParser(description="Clinical triage evaluation harness.")
     parser.add_argument("--mode", type=str, default="rules", choices=["rules", "hybrid", "llm", "all"], help="Execution mode")
-    parser.add_argument("--split", type=str, default="test", choices=["dev", "test", "all"], help="Dataset split")
+    parser.add_argument("--split", type=str, default="test", choices=["dev", "test", "holdout", "all"], help="Dataset split")
     args = parser.parse_args()
 
     if args.mode == "all":
