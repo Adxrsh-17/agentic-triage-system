@@ -143,8 +143,8 @@
             \textbf{Target Deployment:} & Emergency Departments \& High-Acuity Ambulatory Intake \\
             \textbf{Standard Compliance:} & Emergency Severity Index (ESI v4), HL7 FHIR R4, PEP 517/621 \\
             \textbf{Source Repository:} & \texttt{Personal Projects / Agentic-Triage Systems} \\
-            \textbf{Test Battery Status:} & 61 Automated Tests Passing (100\% Pass Rate) \\
-            \textbf{Benchmark Edition:} & Frozen 150-Case Ground-Truth Benchmark (\texttt{vignettes\_v2.jsonl}) \\
+            \textbf{Test Battery Status:} & Comprehensive Offline Automated Suite (100\% Pass Rate) \\
+            \textbf{Benchmark Governance:} & 180 Cases: Dev ($n=90$), Frozen Test ($n=60$), Blind Holdout ($n=30$) \\
             \textbf{Date of Publication:} & October 2026
         \end{tabular}
     };
@@ -542,33 +542,61 @@ The repository is fully packaged using `pyproject.toml` with clean dependency is
 \section{Empirical Evaluation \& Ablation Studies}
 \label{sec:ablation}
 
-\subsection{Evaluation Methodology \& Benchmark Isolation}
-To avoid subtle data leakage and overfitting, our 150-vignette benchmark (`data/vignettes_v2.jsonl`) was split into:
+\subsection{Evaluation Methodology \& Split Governance}
+To prevent subtle data leakage, circular evaluation, and prompt overfitting, our evaluation dataset adheres strictly to the governance framework codified in \texttt{eval/SPLIT\_POLICY.md}:
 \begin{itemize}[leftmargin=1.5em]
-    \item \textbf{DEV Split ($n=90$):} Used strictly for prompt refinement, regex pattern optimization, and danger-zone threshold calibration.
-    \item \textbf{Held-Out TEST Split ($n=60$):} Completely frozen and isolated. No model, rule, or prompt was evaluated on TEST until all engineering was finalized.
+    \item \textbf{Development Split (DEV, $n=90$):} Used exclusively for iterative heuristic calibration, NegEx scope tuning, and urgent-tier category engineering.
+    \item \textbf{Held-Out Benchmark Split (TEST, $n=60$):} Frozen and isolated for milestone evaluation. Every execution is audited and appended to an immutable ledger (\texttt{eval/results/run\_log.jsonl}) with git commit hashes.
+    \item \textbf{Blind Real-World Holdout Split ($n=30$):} Unseen colloquial scenarios featuring Indian-English / code-mixed descriptions, complex comorbidities, and atypical presentations.
 \end{itemize}
-Confidence intervals ($95\%$) are computed using Wilson score intervals for proportions and bootstrap resampling ($B=1,000$) for concordance statistics.
+All proportion metrics report exact $k/n$ sample counts and Wilson $95\%$ score confidence intervals, with Macro-F1 calculated across $B=1,000$ bootstrap iterations.
+
+\subsection{Development Set Calibration (Before vs. After Fix 5)}
+Table~\ref{tab:dev_calibration} presents the empirical impact of adding calibrated \texttt{URGENT\_TIER\_RULES} and physiological vitals escalation (e.g., hypoxic tachypnea and febrile tachycardia) on the development split ($n=90$):
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{X c c c}
+\toprule
+\textbf{Clinical Evaluation Metric} & \textbf{Pre-Calibration Baseline} & \textbf{Post-Calibration (Fix 5)} & \textbf{Absolute Gain} \\
+\midrule
+\textbf{Overall Accuracy} & 78.9\% (71/90) $[69.4\%, 86.0\%]$ & \textbf{97.8\% (88/90) $[92.3\%, 99.4\%]$} & \textbf{+18.9\%} \\
+\textbf{Macro-F1 Score} & 71.5\% $[60.9\%, 81.3\%]$ & \textbf{97.7\% $[93.9\%, 100.0\%]$} & \textbf{+26.2\%} \\
+\textbf{Emergency Recall (Sensitivity)} & 83.3\% (30/36) $[68.1\%, 92.1\%]$ & \textbf{97.2\% (35/36) $[85.8\%, 99.5\%]$} & \textbf{+13.9\%} \\
+\textbf{Urgent Recall} & 33.3\% (6/18) $[16.3\%, 56.3\%]$ & \textbf{94.4\% (17/18) $[74.2\%, 99.0\%]$} & \textbf{+61.1\%} \\
+\textbf{Routine Recall} & 97.2\% (35/36) $[85.8\%, 99.5\%]$ & \textbf{100.0\% (36/36) $[90.4\%, 100.0\%]$} & \textbf{+2.8\%} \\
+\textbf{Under-Triage Rate (Type II)} & 20.00\% (18/90) & \textbf{1.11\% (1/90)} & \textbf{-18.89\%} \\
+\textbf{Over-Triage Rate (Type I)} & 1.11\% (1/90) & \textbf{1.11\% (1/90)} & 0.00\% \\
+\bottomrule
+\end{tabularx}
+\caption{Development Split ($n=90$) Acuity Stratification Calibration Results.}
+\label{tab:dev_calibration}
+\end{table}
 
 \subsection{Frozen TEST Set Benchmark Results ($n=60$)}
+Table~\ref{tab:test_metrics} details the milestone performance of the deterministic safety-floor engine evaluated on the completely frozen held-out test split, as generated automatically by \texttt{eval/run\_eval.py}:
 
 \begin{table}[htbp]
 \centering
 \small
 \begin{tabularx}{\textwidth}{X c c p{4.5cm}}
 \toprule
-\textbf{Metric} & \textbf{Measured} & \textbf{95\% Confidence Interval} & \textbf{Clinical Benchmark Comparison} \\
+\textbf{Metric} & \textbf{Rules Safety Floor} & \textbf{95\% Confidence Interval} & \textbf{Operational Interpretation} \\
 \midrule
-\textbf{Exact ESI Concordance} & \textbf{58.33\%} & $[45.74\%, 69.83\%]$ & Multi-class exact agreement on test set. \\
-\textbf{Within-$\pm 1$ Acuity Accuracy} & \textbf{88.33\%} & $[77.82\%, 94.40\%]$ & 53 of 60 cases within 1 acuity level. \\
-\textbf{High-Acuity Recall (ESI 1-2)} & \textbf{90.00\%} & $[69.90\%, 97.21\%]$ & 18 of 20 life-threatening cases identified. \\
-\textbf{Under-Triage Rate (UTR)} & \textbf{16.67\%} & $[9.40\%, 27.96\%]$ & Low clinical failure rate on life threats. \\
-\textbf{Over-Triage Rate (OTR)} & \textbf{25.00\%} & $[15.69\%, 37.47\%]$ & Acceptable safety buffer for hospital flow. \\
-\textbf{Cohen's Kappa ($\kappa_w$, Quadratic)} & \textbf{0.8145} & $[0.7180, 0.9110]$ & \textbf{Substantial to near-perfect agreement}. \\
-\textbf{Cohen's Kappa ($\kappa_l$, Linear)} & \textbf{0.6279} & $[0.5050, 0.7510]$ & Substantial ordinal concordance. \\
+\textbf{Overall Accuracy} & \textbf{68.33\% (41/60)} & $[55.77\%, 78.69\%]$ & Multi-class exact concordance on frozen test cases. \\
+\textbf{Macro-F1 Score} & \textbf{62.81\%} & $[51.42\%, 74.20\%]$ & Harmonic mean across Emergency, Urgent, Routine. \\
+\textbf{Emergency Recall (Sensitivity)} & \textbf{66.67\% (16/24)} & $[46.71\%, 82.03\%]$ & Inviolable safety floor identifying life-threats. \\
+\textbf{Emergency Precision} & \textbf{100.00\% (16/16)} & $[80.64\%, 100.00\%]$ & Zero false-positive emergency alerts. \\
+\textbf{Urgent Recall} & \textbf{33.33\% (4/12)} & $[13.81\%, 60.91\%]$ & Subacute symptoms flagged for timely nurse intake. \\
+\textbf{Routine Recall} & \textbf{87.50\% (21/24)} & $[68.99\%, 95.69\%]$ & Reliable clinic and self-care disposition. \\
+\textbf{Under-Triage Rate (UTR)} & \textbf{26.67\% (16/60)} & — & Primary safety KPI minimized by hybrid arbitration. \\
+\textbf{Over-Triage Rate (OTR)} & \textbf{5.00\% (3/60)} & — & Strict operational containment of ED crowding. \\
+\textbf{P50 Latency} & \textbf{0.13 ms} & — & Microsecond deterministic execution. \\
+\textbf{P95 Latency} & \textbf{1.77 ms} & — & Predictable real-time safety floor response. \\
 \bottomrule
 \end{tabularx}
-\caption{Performance Metrics on Frozen Held-Out TEST Split ($n=60$) from \texttt{docs/results/test\_evaluation\_results.json}.}
+\caption{Performance Metrics on Frozen Held-Out TEST Split ($n=60$) from \texttt{eval/results/summary.md}.}
 \label{tab:test_metrics}
 \end{table}
 
