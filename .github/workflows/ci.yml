@@ -33,6 +33,15 @@ jobs:
         ruff check . --select E9,F63,F7,F82 --show-source
         ruff check agent/ tests/ eval/ --ignore E501
 
+    - name: Run Gitleaks Secret Scanner
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
     - name: Test with pytest
+      env:
+        TRIAGE_MODE: rules
+        OFFLINE_MODE: "1"
       run: |
         pytest tests/ -v -q --tb=short
