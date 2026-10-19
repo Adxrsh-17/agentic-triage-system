@@ -141,7 +141,7 @@ class TriageAuditLogger:
                     "override_count": 0,
                     "override_rate_pct": 0.0,
                     "upgraded_count": 0,
-                    "downgraded_count": downgraded if 'downgraded' in locals() else 0,
+                    "downgraded_count": 0,
                     "override_reasons": {},
                     "esi_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
                 }
@@ -188,6 +188,7 @@ class TriageAuditLogger:
 
     clear_logs = clear
     get_metrics = get_analytics
+    get_recent_encounters = get_encounters
 
 
 def get_audit_logger() -> TriageAuditLogger:

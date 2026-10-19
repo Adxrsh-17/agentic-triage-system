@@ -24,6 +24,8 @@ load_dotenv(override=True)
 
 from agent.audit_logger import get_audit_logger
 from agent.infermedica_client import is_infermedica_configured
+from agent.llm import DEFAULT_MODEL, is_llm_available
+from agent.memory.store import get_memory_store
 from agent.multi_agent import extract_vitals_from_text, get_multi_agent
 
 logger = logging.getLogger("triage-nurse-copilot")
@@ -354,6 +356,60 @@ init_session()
 audit = get_audit_logger()
 metrics = audit.get_metrics()
 
+# ---------------------------------------------------------------------------
+# Sidebar Diagnostics & Engine Configuration
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 🏥 System Diagnostics")
+    llm_active = is_llm_available()
+    mode_label = "Hybrid (LLM + Rules Floor)" if llm_active else "Offline Rules-Only (Floor)"
+    mode_color = "#34d399" if llm_active else "#fbbf24"
+    st.markdown(
+        f"""
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:0.75rem 0.9rem;margin-bottom:0.8rem;">
+            <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;">Engine Mode</div>
+            <div style="font-size:0.95rem;font-weight:800;color:{mode_color};margin-top:0.2rem;">● {mode_label}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    mem_store = get_memory_store()
+    mem_backend_name = type(mem_store).__name__
+    active_model = DEFAULT_MODEL if llm_active else "N/A (Rules Mode)"
+
+    st.markdown("**Engine Specifications:**")
+    st.markdown(f"- **Active LLM:** `{active_model}`")
+    st.markdown(f"- **Memory Store:** `{mem_backend_name}`")
+    st.markdown("- **Embeddings:** `all-MiniLM-L6-v2` (384-dim)")
+    st.markdown("- **Supervisor:** Deterministic State Graph")
+
+    st.markdown("---")
+    st.markdown("### 🛡️ Safety Invariant")
+    st.info(
+        "**Floor Invariant:** `Final Urgency ≥ Rule Floor`\n\n"
+        "LLM context may escalate severity for subtle presentations, but can **never** de-escalate below the deterministic red-flag safety check."
+    )
+
+    st.markdown("### 📋 Clinical Gate")
+    st.caption(
+        "All AI suggestions require mandatory verification by a licensed triage nurse. "
+        "Nurse overrides are permanently recorded in the audit trail with clinical rationale."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Persistent Clinical Disclaimer Banner
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
+    <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 0.9rem; font-size: 0.82rem; color: #fef3c7; line-height: 1.5;">
+        ⚠️ <strong>EDUCATIONAL & RESEARCH PROTOTYPE ONLY:</strong> This software is an engineering portfolio demonstration and <strong>not a certified medical device</strong> (FDA SaMD / CE-IVD). It is not cleared for autonomous patient diagnosis, prescription, or clinical triage. All decisions require licensed clinician sign-off. Never input real Protected Health Information (PHI).
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ---------------------------------------------------------------------------
 # Top Header & Live Concordance Banner
@@ -643,6 +699,11 @@ with tab_intake:
                     st.markdown(f"**Red Flags Present:** {', '.join(red_flags) if red_flags else 'None'}")
                     st.markdown(f"**Intake Extraction:** `{res.get('intake_method', 'regex_fallback')}`")
 
+                # Relevant patient history / memory used
+                comorbidities = st.session_state.patient_conditions
+                if comorbidities:
+                    st.markdown(f"**Relevant Patient History / Memory:** `{', '.join(comorbidities)}` (Factored into clinical risk assessment)")
+
                 # Consensus arbitration note
                 if res.get("infermedica_triage"):
                     inf = res["infermedica_triage"]
@@ -738,6 +799,49 @@ with tab_intake:
                     mime="application/json",
                     use_container_width=True,
                 )
+
+            # ---------------------------------------------------------------
+            # Multi-Agent Trace & Engine Diagnostics
+            # ---------------------------------------------------------------
+            with st.expander("🔍 Multi-Agent Execution Trace & Engine Diagnostics", expanded=False):
+                tc1, tc2, tc3, tc4 = st.columns(4)
+                with tc1:
+                    is_hybrid = is_llm_available()
+                    st.metric("Engine Mode", "Hybrid (LLM+Rules)" if is_hybrid else "Rules Safety Floor")
+                with tc2:
+                    st.metric("Intake Method", res.get("intake_method", "N/A"))
+                with tc3:
+                    lat_ms = res.get("latency_ms", res.get("latency_seconds", 0.0) * 1000.0)
+                    st.metric("Total Latency", f"{lat_ms:.1f} ms")
+                with tc4:
+                    has_disagree = bool(res.get("vital_triggers") or (res.get("risk_assessment", {}).get("disagreement", False) if isinstance(res.get("risk_assessment"), dict) else False))
+                    st.metric("Safety Override", "ACTIVE" if has_disagree else "Concordant")
+
+                red_flags_found = res.get("red_flags", [])
+                if red_flags_found:
+                    st.markdown(f"**Identified Red Flags ({len(red_flags_found)}):** `{'`, `'.join(red_flags_found)}`")
+                else:
+                    st.markdown("**Identified Red Flags:** None detected")
+
+                vital_trigs = res.get("vital_triggers", [])
+                if vital_trigs:
+                    st.markdown(f"**Vital Danger Triggers ({len(vital_trigs)}):** `{'`, `'.join(vital_trigs)}`")
+
+                st.markdown("**Workflow Node Execution Details:**")
+                wf_trace = res.get("workflow_trace", [])
+                if wf_trace:
+                    trace_table = []
+                    for step in wf_trace:
+                        dur = step.get("duration_ms")
+                        trace_table.append({
+                            "Node": step.get("node", "N/A"),
+                            "Duration (ms)": f"{dur:.1f}" if dur is not None else "N/A",
+                            "Tools Used": ", ".join(step.get("tools", [])) or "None",
+                            "Summary": step.get("summary", ""),
+                        })
+                    st.dataframe(trace_table, use_container_width=True)
+                else:
+                    st.caption("No granular node trace recorded for this encounter.")
 
 
 # ---------------------------------------------------------------------------
