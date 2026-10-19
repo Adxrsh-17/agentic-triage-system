@@ -493,7 +493,7 @@ st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
-# Preset Vignette Selector (1-Click Interview Demo)
+# Preset Clinical Vignette Selector (1-Click Demo)
 # ---------------------------------------------------------------------------
 selected_vignette_key = st.selectbox(
     "Load Clinical Intake Vignette (Pre-configured standardized test cases):",

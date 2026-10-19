@@ -12,22 +12,15 @@
 
 ---
 
-## 30-Second Interview Pitch
+## Overview
 
-> *"Triage nurses lose precious minutes on manual intake and face immense cognitive load under crowded emergency department conditions. I designed and built an agentic triage decision-support copilot in LangGraph. It converts free-text intake into clinical concepts, screens vital signs against ESI v4 danger zones, and combines LLM semantic reasoning with an un-breachable deterministic safety floor: the system may escalate acuity based on context, but can never de-escalate risk below what red-flag rules mandate. Every recommendation requires licensed nurse sign-off, and overrides are permanently audited."*
+A modular, safety-critical decision-support copilot designed for emergency intake. Free-text patient narratives and telemetry are converted into structured clinical concepts, evaluated against pediatric and adult **ESI v4** physiological danger zones, and synthesized through a hybrid multi-agent consensus graph.
 
----
+The system enforces a strict mathematical safety invariant:
 
-## 60-Second Project in Brief
+$$\text{FinalAcuity} \ge \text{RulesSafetyFloor}$$
 
-- **What it is:** A Python-based clinical triage decision-support prototype implementing a multi-agent LangGraph pipeline with an inviolable deterministic safety floor.
-- **Why it matters:** Generative AI cannot be trusted unconditionally in high-stakes clinical triage. Our architecture guarantees that final triage acuity is mathematically bounded by emergency clinical rules ($\text{FinalRisk} \ge \text{RuleFloor}$).
-- **Core Capabilities:**
-  - Converts free-text intake into structured clinical entities with NegEx negation parsing.
-  - Evaluates physiological vital signs against age-stratified pediatric and adult ESI v4 criteria.
-  - Hybrid consensus engine reconciling generative LLM predictions with compiled red-flag rules.
-  - Generates standardized SBAR handoff notes and downloadable HL7 FHIR R4 clinical bundles.
-  - Runs **$100\%$ offline** with sub-millisecond execution ($0.13\text{ ms}$) without requiring API keys.
+A generative LLM may escalate acuity based on complex clinical gestalt, but can **never** de-escalate risk below what deterministic red-flag rules mandate. The core rules engine runs **$100\%$ offline** at **$0.13\text{ ms}$** latency without requiring cloud API keys.
 
 ---
 
@@ -147,7 +140,7 @@ To uphold strict machine learning hygiene, the dataset is partitioned into:
 
 > [!NOTE]
 > **Dataset Caveats & Methodology:**
-> The evaluation dataset (`eval/cases.jsonl`) comprises synthetic, author-labeled vignettes created for engineering validation. While modeled after ESI v4 criteria, they are **not clinically validated on real hospital patient records**. In interviews and papers, we disclose that evaluating LLMs on synthetic benchmarks carries risk of circularity. For a full autopsy of misclassified test cases, see [`docs/error_analysis.md`](docs/error_analysis.md).
+> The evaluation dataset (`eval/cases.jsonl`) comprises synthetic, author-labeled vignettes created for engineering validation. While modeled after ESI v4 criteria, they are **not clinically validated on real hospital patient records**. Evaluating generative models on synthetic benchmarks carries inherent risk of circularity, directly motivating our deterministic safety floor architecture. For a full autopsy of discordant cases, see [`docs/error_analysis.md`](docs/error_analysis.md).
 
 ---
 
@@ -286,9 +279,7 @@ agentic-triage-system/
 ├── pyproject.toml                 # Ruff linter and pytest configurations
 ├── requirements.txt               # Production dependencies
 ├── requirements-dev.txt           # Testing and development tooling
-├── CONTRIBUTING.md                # Contribution guidelines and coding standards
-├── CHANGELOG.md                   # Version progression across engineering phases
-└── README.md                      # System documentation and interview guide
+└── README.md                      # Architecture and system documentation
 ```
 
 ---
