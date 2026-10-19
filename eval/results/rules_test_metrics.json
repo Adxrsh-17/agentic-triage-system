@@ -1,11 +1,25 @@
 {
   "n_samples": 60,
   "accuracy_pct": 66.67,
+  "accuracy_ci_95": [
+    54.06,
+    77.27
+  ],
+  "accuracy_display": "66.7% (40/60) [54.1%\u201377.3%]",
   "macro_f1_pct": 61.31,
+  "macro_f1_ci_95": [
+    49.06,
+    73.21
+  ],
+  "macro_f1_display": "61.3% [49.1%\u201373.2%]",
   "emergency_recall_pct": 62.5,
+  "emergency_recall_display": "62.5% (15/24) [42.7%\u201378.8%]",
   "emergency_precision_pct": 100.0,
+  "emergency_precision_display": "100.0% (15/15) [79.6%\u2013100.0%]",
   "urgent_recall_pct": 33.33,
+  "urgent_recall_display": "33.3% (4/12) [13.8%\u201360.9%]",
   "routine_recall_pct": 87.5,
+  "routine_recall_display": "87.5% (21/24) [69.0%\u201395.7%]",
   "undertriage_rate_pct": 28.33,
   "overtriage_rate_pct": 5.0,
   "per_class": {
@@ -13,19 +27,55 @@
       "precision": 100.0,
       "recall": 62.5,
       "f1": 76.92,
-      "support": 24
+      "tp": 15,
+      "support": 24,
+      "pred_count": 15,
+      "recall_ci_95": [
+        42.71,
+        78.84
+      ],
+      "precision_ci_95": [
+        79.61,
+        100.0
+      ],
+      "recall_display": "62.5% (15/24) [42.7%\u201378.8%]",
+      "precision_display": "100.0% (15/15) [79.6%\u2013100.0%]"
     },
     "urgent": {
       "precision": 33.33,
       "recall": 33.33,
       "f1": 33.33,
-      "support": 12
+      "tp": 4,
+      "support": 12,
+      "pred_count": 12,
+      "recall_ci_95": [
+        13.81,
+        60.94
+      ],
+      "precision_ci_95": [
+        13.81,
+        60.94
+      ],
+      "recall_display": "33.3% (4/12) [13.8%\u201360.9%]",
+      "precision_display": "33.3% (4/12) [13.8%\u201360.9%]"
     },
     "routine": {
       "precision": 63.64,
       "recall": 87.5,
       "f1": 73.68,
-      "support": 24
+      "tp": 21,
+      "support": 24,
+      "pred_count": 33,
+      "recall_ci_95": [
+        69.0,
+        95.66
+      ],
+      "precision_ci_95": [
+        46.62,
+        77.81
+      ],
+      "recall_display": "87.5% (21/24) [69.0%\u201395.7%]",
+      "precision_display": "63.6% (21/33) [46.6%\u201377.8%]"
     }
   },
   "confusion_matrix": {
@@ -47,8 +97,8 @@
   },
   "mode": "rules",
   "split": "test",
-  "latency_p50_ms": 0.19,
-  "latency_p95_ms": 2.57,
+  "latency_p50_ms": 0.11,
+  "latency_p95_ms": 1.57,
   "disagreement_rate_pct": 0.0,
   "category_breakdown": {
     "GI": {

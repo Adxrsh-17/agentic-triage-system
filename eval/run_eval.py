@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -39,40 +39,81 @@ RESULTS_DIR = EVAL_DIR / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
 
 
+from scripts.eval_utils import compute_bootstrap_ci, wilson_score_interval
+
+
+def bootstrap_macro_f1_ci(
+    y_true: Sequence[str],
+    y_pred: Sequence[str],
+    n_resamples: int = 1000,
+    seed: int = 42,
+) -> Tuple[float, float, float]:
+    """Calculate point estimate and 95% bootstrap confidence interval for Macro-F1."""
+    classes = ["emergency", "urgent", "routine"]
+
+    def _macro_f1(t_arr, p_arr):
+        f1s = []
+        for c in classes:
+            tp = sum(1 for yt, yp in zip(t_arr, p_arr) if yt == c and yp == c)
+            fp = sum(1 for yt, yp in zip(t_arr, p_arr) if yt != c and yp == c)
+            fn = sum(1 for yt, yp in zip(t_arr, p_arr) if yt == c and yp != c)
+            prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            f1 = (2 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0
+            f1s.append(f1)
+        return float(np.mean(f1s)) * 100.0
+
+    return compute_bootstrap_ci(y_true, y_pred, _macro_f1, n_resamples=n_resamples, seed=seed)
+
+
 # ── Metric Calculation Utilities ─────────────────────────────────────────────
 
 def compute_classification_metrics(y_true: List[str], y_pred: List[str]) -> Dict[str, Any]:
-    """Compute accuracy, per-class precision/recall, macro-F1, undertriage, and overtriage."""
+    """Compute accuracy, per-class precision/recall, macro-F1, undertriage, and overtriage with Wilson CIs."""
     classes = ["emergency", "urgent", "routine"]
     n = len(y_true)
     if n == 0:
         return {}
 
     correct = sum(1 for yt, yp in zip(y_true, y_pred) if yt == yp)
-    accuracy = correct / n
+    accuracy = (correct / n) * 100.0
+    acc_ci_low, acc_ci_high = wilson_score_interval(correct, n)
 
     # Per-class metrics
-    per_class: Dict[str, Dict[str, float]] = {}
+    per_class: Dict[str, Dict[str, Any]] = {}
     f1_scores: List[float] = []
 
     for c in classes:
         tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp == c)
         fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt != c and yp == c)
         fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == c and yp != c)
+        supp = tp + fn
+        pred_cnt = tp + fp
 
-        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = (2 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0
+        prec = (tp / pred_cnt) * 100.0 if pred_cnt > 0 else 0.0
+        rec = (tp / supp) * 100.0 if supp > 0 else 0.0
+        f1 = (2 * (prec / 100.0) * (rec / 100.0)) / ((prec / 100.0) + (rec / 100.0)) * 100.0 if (prec + rec) > 0 else 0.0
+
+        rec_ci_low, rec_ci_high = wilson_score_interval(tp, supp)
+        prec_ci_low, prec_ci_high = wilson_score_interval(tp, pred_cnt)
 
         per_class[c] = {
-            "precision": round(prec * 100, 2),
-            "recall": round(rec * 100, 2),
-            "f1": round(f1 * 100, 2),
-            "support": sum(1 for yt in y_true if yt == c),
+            "precision": round(prec, 2),
+            "recall": round(rec, 2),
+            "f1": round(f1, 2),
+            "tp": tp,
+            "support": supp,
+            "pred_count": pred_cnt,
+            "recall_ci_95": [round(rec_ci_low * 100.0, 2), round(rec_ci_high * 100.0, 2)],
+            "precision_ci_95": [round(prec_ci_low * 100.0, 2), round(prec_ci_high * 100.0, 2)],
+            "recall_display": f"{rec:.1f}% ({tp}/{supp}) [{rec_ci_low*100.0:.1f}%–{rec_ci_high*100.0:.1f}%]",
+            "precision_display": f"{prec:.1f}% ({tp}/{pred_cnt}) [{prec_ci_low*100.0:.1f}%–{prec_ci_high*100.0:.1f}%]",
         }
-        f1_scores.append(f1)
+        f1_scores.append(f1 / 100.0)
 
-    macro_f1 = float(np.mean(f1_scores)) * 100.0
+    # Bootstrap Macro-F1 (1000 resamples, fixed seed 42)
+    f1_point, f1_low, f1_high = bootstrap_macro_f1_ci(y_true, y_pred, n_resamples=1000, seed=42)
+    macro_f1 = f1_point
 
     # Under-triage: true is more severe than predicted
     # Over-triage: predicted is more severe than true
@@ -91,12 +132,20 @@ def compute_classification_metrics(y_true: List[str], y_pred: List[str]) -> Dict
 
     return {
         "n_samples": n,
-        "accuracy_pct": round(accuracy * 100, 2),
+        "accuracy_pct": round(accuracy, 2),
+        "accuracy_ci_95": [round(acc_ci_low * 100.0, 2), round(acc_ci_high * 100.0, 2)],
+        "accuracy_display": f"{accuracy:.1f}% ({correct}/{n}) [{acc_ci_low*100.0:.1f}%–{acc_ci_high*100.0:.1f}%]",
         "macro_f1_pct": round(macro_f1, 2),
+        "macro_f1_ci_95": [round(f1_low, 2), round(f1_high, 2)],
+        "macro_f1_display": f"{macro_f1:.1f}% [{f1_low:.1f}%–{f1_high:.1f}%]",
         "emergency_recall_pct": per_class["emergency"]["recall"],
+        "emergency_recall_display": per_class["emergency"]["recall_display"],
         "emergency_precision_pct": per_class["emergency"]["precision"],
+        "emergency_precision_display": per_class["emergency"]["precision_display"],
         "urgent_recall_pct": per_class["urgent"]["recall"],
+        "urgent_recall_display": per_class["urgent"]["recall_display"],
         "routine_recall_pct": per_class["routine"]["recall"],
+        "routine_recall_display": per_class["routine"]["recall_display"],
         "undertriage_rate_pct": round(undertriage_rate, 2),
         "overtriage_rate_pct": round(overtriage_rate, 2),
         "per_class": per_class,
@@ -289,16 +338,22 @@ def write_summary_report(split: str = "test") -> None:
         "|:---|:---:|:---:|:---:|",
     ]
 
+    def _disp(d, key, fallback_key, suffix="%"):
+        if key in d and d[key]:
+            return str(d[key])
+        val = d.get(fallback_key, "-")
+        return f"{val}{suffix}" if val != "-" else "-"
+
     metric_keys = [
-        ("Evaluated Samples (n)", lambda d: d.get("n_samples", "-")),
-        ("Overall Accuracy (%)", lambda d: f"{d.get('accuracy_pct', '-')}%"),
-        ("Macro-F1 Score (%)", lambda d: f"{d.get('macro_f1_pct', '-')}%"),
-        ("**Emergency Recall (%)** (Safety KPI)", lambda d: f"**{d.get('emergency_recall_pct', '-')}%**"),
-        ("Emergency Precision (%)", lambda d: f"{d.get('emergency_precision_pct', '-')}%"),
-        ("Urgent Recall (%)", lambda d: f"{d.get('urgent_recall_pct', '-')}%"),
-        ("Routine Recall (%)", lambda d: f"{d.get('routine_recall_pct', '-')}%"),
-        ("Under-Triage Rate (%) (Type II)", lambda d: f"{d.get('undertriage_rate_pct', '-')}%"),
-        ("Over-Triage Rate (%) (Type I)", lambda d: f"{d.get('overtriage_rate_pct', '-')}%"),
+        ("Evaluated Samples (n)", lambda d: str(d.get("n_samples", "-"))),
+        ("Overall Accuracy (%)", lambda d: _disp(d, "accuracy_display", "accuracy_pct")),
+        ("Macro-F1 Score (%)", lambda d: _disp(d, "macro_f1_display", "macro_f1_pct")),
+        ("**Emergency Recall (%)** (Safety KPI)", lambda d: f"**{_disp(d, 'emergency_recall_display', 'emergency_recall_pct')}**"),
+        ("Emergency Precision (%)", lambda d: _disp(d, "emergency_precision_display", "emergency_precision_pct")),
+        ("Urgent Recall (%)", lambda d: _disp(d, "urgent_recall_display", "urgent_recall_pct")),
+        ("Routine Recall (%)", lambda d: _disp(d, "routine_recall_display", "routine_recall_pct")),
+        ("Under-Triage Rate (%) (Type II)", lambda d: _disp(d, "undertriage_rate_display", "undertriage_rate_pct")),
+        ("Over-Triage Rate (%) (Type I)", lambda d: _disp(d, "overtriage_rate_display", "overtriage_rate_pct")),
         ("Latency P50 (ms)", lambda d: f"{d.get('latency_p50_ms', '-')} ms"),
         ("Latency P95 (ms)", lambda d: f"{d.get('latency_p95_ms', '-')} ms"),
         ("LLM vs Rules Disagreement Rate (%)", lambda d: f"{d.get('disagreement_rate_pct', '-')}%"),

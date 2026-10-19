@@ -52,3 +52,10 @@ python -m eval.run_eval --mode llm --split test
 - Turnaround Latency (P50, P95)
 - LLM vs. Rules Disagreement Rate
 - Automated Markdown Summary Table (`eval/results/summary.md`)
+
+---
+
+## 4. How to Read These Numbers (Statistical Uncertainty & Interpretation)
+
+All performance metrics report exact case counts `(k/n)` alongside 95% Wilson score confidence intervals for proportions and 1,000-sample bootstrap intervals for Macro-F1. When reading these figures, note that sample sizes on held-out partitions are small ($n=60$ total on the test split, with only $n=12$ urgent cases). Consequently, per-class confidence intervals are wide (e.g., an urgent recall of $33.3\%$ carries a 95% CI of $[13.8\%, 60.9\%]$), reflecting substantial statistical uncertainty. Furthermore, because all vignettes are synthetic and author-labeled rather than clinical encounters drawn from live Electronic Health Records, these empirical metrics are indicative of architectural design properties rather than conclusive clinical efficacy.
+

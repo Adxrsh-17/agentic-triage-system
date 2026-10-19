@@ -26,6 +26,11 @@ def test_wilson_score_interval():
     assert 0.55 < high < 0.60
     assert abs((low + high) / 2.0 - 0.5) < 0.01
 
+    # 5 out of 8 (e.g. roughly [0.31, 0.86])
+    low, high = wilson_score_interval(5, 8)
+    assert 0.30 <= low <= 0.32
+    assert 0.85 <= high <= 0.87
+
     # Edge cases
     assert wilson_score_interval(0, 0) == (0.0, 0.0)
 
