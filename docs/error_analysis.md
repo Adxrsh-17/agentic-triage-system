@@ -30,6 +30,18 @@ On the un-tuned rules safety floor, the development split achieved an initial ac
 - **Root Cause:** Superficial minor cut where "cut" keyword triggered an urgent laceration rule despite explicitly stating "minor superficial scratch".
 - **Calibrated Rule Action:** Enforce qualifier check (`"minor"`, `"superficial"`, `"small"`) to suppress urgent escalation on paper cuts and superficial scratches.
 
+### Development Split Calibration Results (Before vs After)
+
+| Metric | Pre-Calibration (Baseline) | Post-Calibration (Fix 5) | Absolute Improvement |
+|:---|:---:|:---:|:---:|
+| **Overall Accuracy** | 78.9% (71/90) [69.4%–86.0%] | **97.8% (88/90) [92.3%–99.4%]** | **+18.9%** |
+| **Macro-F1 Score** | 71.5% [60.9%–81.3%] | **97.7% [93.9%–100.0%]** | **+26.2%** |
+| **Emergency Recall** | 83.3% (30/36) [68.1%–92.1%] | **97.2% (35/36) [85.8%–99.5%]** | **+13.9%** |
+| **Urgent Recall** | 33.3% (6/18) [16.3%–56.3%] | **94.4% (17/18) [74.2%–99.0%]** | **+61.1%** |
+| **Routine Recall** | 97.2% (35/36) [85.8%–99.5%] | **100.0% (36/36) [90.4%–100.0%]** | **+2.8%** |
+| **Under-Triage Rate** | 20.00% (18/90) | **1.11% (1/90)** | **-18.89%** |
+| **Over-Triage Rate** | 1.11% (1/90) | **1.11% (1/90)** | 0.00% |
+
 ---
 
 ## 2. Frozen Held-Out Test Split ($n=60$) Milestone Observations

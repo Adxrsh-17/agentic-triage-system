@@ -121,16 +121,16 @@ To uphold strict machine learning hygiene, the dataset is partitioned into:
 | Evaluation Metric | Rules-Only (Safety Floor) | Hybrid Consensus (LLM + Rules) |
 |:---|:---:|:---:|
 | **Sample Size ($n$)** | **60** | *Requires API Key* |
-| **Overall Accuracy** | **66.7% (40/60) [54.1%–77.3%]** | — |
-| **Macro-F1 Score** | **61.3% [49.1%–73.2%]** | — |
-| **Emergency Recall (Sensitivity)** | **62.5% (15/24) [42.7%–78.8%]** | — |
-| **Emergency Precision** | **100.0% (15/15) [79.6%–100.0%]** | — |
+| **Overall Accuracy** | **68.3% (41/60) [55.8%–78.7%]** | — |
+| **Macro-F1 Score** | **62.8% [51.4%–74.2%]** | — |
+| **Emergency Recall (Sensitivity)** | **66.7% (16/24) [46.7%–82.0%]** | — |
+| **Emergency Precision** | **100.0% (16/16) [80.6%–100.0%]** | — |
 | **Urgent Recall** | **33.3% (4/12) [13.8%–60.9%]** | — |
 | **Routine Recall** | **87.5% (21/24) [69.0%–95.7%]** | — |
-| **Under-Triage Rate (Type II Error)** | **28.33%** | — |
+| **Under-Triage Rate (Type II Error)** | **26.67%** | — |
 | **Over-Triage Rate (Type I Error)** | **5.00%** | — |
-| **P50 Latency** | **0.11 ms** | — |
-| **P95 Latency** | **1.57 ms** | — |
+| **P50 Latency** | **0.13 ms** | — |
+| **P95 Latency** | **1.77 ms** | — |
 
 > [!NOTE]
 > **Dataset Caveats & Methodology:**

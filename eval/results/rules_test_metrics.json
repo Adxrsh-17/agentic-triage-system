@@ -1,88 +1,88 @@
 {
   "n_samples": 60,
-  "accuracy_pct": 66.67,
+  "accuracy_pct": 68.33,
   "accuracy_ci_95": [
-    54.06,
-    77.27
+    55.77,
+    78.69
   ],
-  "accuracy_display": "66.7% (40/60) [54.1%\u201377.3%]",
-  "macro_f1_pct": 61.31,
+  "accuracy_display": "68.3% (41/60) [55.8%\u201378.7%]",
+  "macro_f1_pct": 62.79,
   "macro_f1_ci_95": [
-    49.06,
-    73.21
+    51.4,
+    74.22
   ],
-  "macro_f1_display": "61.3% [49.1%\u201373.2%]",
-  "emergency_recall_pct": 62.5,
-  "emergency_recall_display": "62.5% (15/24) [42.7%\u201378.8%]",
+  "macro_f1_display": "62.8% [51.4%\u201374.2%]",
+  "emergency_recall_pct": 66.67,
+  "emergency_recall_display": "66.7% (16/24) [46.7%\u201382.0%]",
   "emergency_precision_pct": 100.0,
-  "emergency_precision_display": "100.0% (15/15) [79.6%\u2013100.0%]",
+  "emergency_precision_display": "100.0% (16/16) [80.6%\u2013100.0%]",
   "urgent_recall_pct": 33.33,
   "urgent_recall_display": "33.3% (4/12) [13.8%\u201360.9%]",
   "routine_recall_pct": 87.5,
   "routine_recall_display": "87.5% (21/24) [69.0%\u201395.7%]",
-  "undertriage_rate_pct": 28.33,
+  "undertriage_rate_pct": 26.67,
   "overtriage_rate_pct": 5.0,
   "per_class": {
     "emergency": {
       "precision": 100.0,
-      "recall": 62.5,
-      "f1": 76.92,
-      "tp": 15,
+      "recall": 66.67,
+      "f1": 80.0,
+      "tp": 16,
       "support": 24,
-      "pred_count": 15,
+      "pred_count": 16,
       "recall_ci_95": [
-        42.71,
-        78.84
+        46.71,
+        82.03
       ],
       "precision_ci_95": [
-        79.61,
+        80.64,
         100.0
       ],
-      "recall_display": "62.5% (15/24) [42.7%\u201378.8%]",
-      "precision_display": "100.0% (15/15) [79.6%\u2013100.0%]"
+      "recall_display": "66.7% (16/24) [46.7%\u201382.0%]",
+      "precision_display": "100.0% (16/16) [80.6%\u2013100.0%]"
     },
     "urgent": {
-      "precision": 33.33,
+      "precision": 30.77,
       "recall": 33.33,
-      "f1": 33.33,
+      "f1": 32.0,
       "tp": 4,
       "support": 12,
-      "pred_count": 12,
+      "pred_count": 13,
       "recall_ci_95": [
         13.81,
         60.94
       ],
       "precision_ci_95": [
-        13.81,
-        60.94
+        12.68,
+        57.63
       ],
       "recall_display": "33.3% (4/12) [13.8%\u201360.9%]",
-      "precision_display": "33.3% (4/12) [13.8%\u201360.9%]"
+      "precision_display": "30.8% (4/13) [12.7%\u201357.6%]"
     },
     "routine": {
-      "precision": 63.64,
+      "precision": 67.74,
       "recall": 87.5,
-      "f1": 73.68,
+      "f1": 76.36,
       "tp": 21,
       "support": 24,
-      "pred_count": 33,
+      "pred_count": 31,
       "recall_ci_95": [
         69.0,
         95.66
       ],
       "precision_ci_95": [
-        46.62,
-        77.81
+        50.14,
+        81.43
       ],
       "recall_display": "87.5% (21/24) [69.0%\u201395.7%]",
-      "precision_display": "63.6% (21/33) [46.6%\u201377.8%]"
+      "precision_display": "67.7% (21/31) [50.1%\u201381.4%]"
     }
   },
   "confusion_matrix": {
     "emergency": {
-      "emergency": 15,
-      "urgent": 5,
-      "routine": 4
+      "emergency": 16,
+      "urgent": 6,
+      "routine": 2
     },
     "urgent": {
       "emergency": 0,
@@ -97,8 +97,8 @@
   },
   "mode": "rules",
   "split": "test",
-  "latency_p50_ms": 0.14,
-  "latency_p95_ms": 1.47,
+  "latency_p50_ms": 0.13,
+  "latency_p95_ms": 1.77,
   "disagreement_rate_pct": 0.0,
   "category_breakdown": {
     "GI": {
@@ -123,7 +123,7 @@
     },
     "other": {
       "count": 23,
-      "accuracy_pct": 78.26
+      "accuracy_pct": 82.61
     },
     "respiratory": {
       "count": 9,

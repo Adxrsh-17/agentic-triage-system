@@ -1,113 +1,113 @@
 {
   "n_samples": 90,
-  "accuracy_pct": 78.89,
+  "accuracy_pct": 97.78,
   "accuracy_ci_95": [
-    69.37,
-    86.05
+    92.26,
+    99.39
   ],
-  "accuracy_display": "78.9% (71/90) [69.4%\u201386.0%]",
-  "macro_f1_pct": 71.55,
+  "accuracy_display": "97.8% (88/90) [92.3%\u201399.4%]",
+  "macro_f1_pct": 97.67,
   "macro_f1_ci_95": [
-    60.94,
-    81.28
+    93.91,
+    100.0
   ],
-  "macro_f1_display": "71.5% [60.9%\u201381.3%]",
-  "emergency_recall_pct": 83.33,
-  "emergency_recall_display": "83.3% (30/36) [68.1%\u201392.1%]",
-  "emergency_precision_pct": 100.0,
-  "emergency_precision_display": "100.0% (30/30) [88.6%\u2013100.0%]",
-  "urgent_recall_pct": 33.33,
-  "urgent_recall_display": "33.3% (6/18) [16.3%\u201356.3%]",
-  "routine_recall_pct": 97.22,
-  "routine_recall_display": "97.2% (35/36) [85.8%\u201399.5%]",
-  "undertriage_rate_pct": 20.0,
+  "macro_f1_display": "97.7% [93.9%\u2013100.0%]",
+  "emergency_recall_pct": 97.22,
+  "emergency_recall_display": "97.2% (35/36) [85.8%\u201399.5%]",
+  "emergency_precision_pct": 97.22,
+  "emergency_precision_display": "97.2% (35/36) [85.8%\u201399.5%]",
+  "urgent_recall_pct": 94.44,
+  "urgent_recall_display": "94.4% (17/18) [74.2%\u201399.0%]",
+  "routine_recall_pct": 100.0,
+  "routine_recall_display": "100.0% (36/36) [90.4%\u2013100.0%]",
+  "undertriage_rate_pct": 1.11,
   "overtriage_rate_pct": 1.11,
   "per_class": {
     "emergency": {
-      "precision": 100.0,
-      "recall": 83.33,
-      "f1": 90.91,
-      "tp": 30,
-      "support": 36,
-      "pred_count": 30,
-      "recall_ci_95": [
-        68.11,
-        92.13
-      ],
-      "precision_ci_95": [
-        88.65,
-        100.0
-      ],
-      "recall_display": "83.3% (30/36) [68.1%\u201392.1%]",
-      "precision_display": "100.0% (30/30) [88.6%\u2013100.0%]"
-    },
-    "urgent": {
-      "precision": 54.55,
-      "recall": 33.33,
-      "f1": 41.38,
-      "tp": 6,
-      "support": 18,
-      "pred_count": 11,
-      "recall_ci_95": [
-        16.28,
-        56.25
-      ],
-      "precision_ci_95": [
-        28.01,
-        78.73
-      ],
-      "recall_display": "33.3% (6/18) [16.3%\u201356.3%]",
-      "precision_display": "54.5% (6/11) [28.0%\u201378.7%]"
-    },
-    "routine": {
-      "precision": 71.43,
+      "precision": 97.22,
       "recall": 97.22,
-      "f1": 82.35,
+      "f1": 97.22,
       "tp": 35,
       "support": 36,
-      "pred_count": 49,
+      "pred_count": 36,
       "recall_ci_95": [
         85.83,
         99.51
       ],
       "precision_ci_95": [
-        57.59,
-        82.15
+        85.83,
+        99.51
       ],
       "recall_display": "97.2% (35/36) [85.8%\u201399.5%]",
-      "precision_display": "71.4% (35/49) [57.6%\u201382.2%]"
+      "precision_display": "97.2% (35/36) [85.8%\u201399.5%]"
+    },
+    "urgent": {
+      "precision": 100.0,
+      "recall": 94.44,
+      "f1": 97.14,
+      "tp": 17,
+      "support": 18,
+      "pred_count": 17,
+      "recall_ci_95": [
+        74.24,
+        99.01
+      ],
+      "precision_ci_95": [
+        81.57,
+        100.0
+      ],
+      "recall_display": "94.4% (17/18) [74.2%\u201399.0%]",
+      "precision_display": "100.0% (17/17) [81.6%\u2013100.0%]"
+    },
+    "routine": {
+      "precision": 97.3,
+      "recall": 100.0,
+      "f1": 98.63,
+      "tp": 36,
+      "support": 36,
+      "pred_count": 37,
+      "recall_ci_95": [
+        90.36,
+        100.0
+      ],
+      "precision_ci_95": [
+        86.18,
+        99.52
+      ],
+      "recall_display": "100.0% (36/36) [90.4%\u2013100.0%]",
+      "precision_display": "97.3% (36/37) [86.2%\u201399.5%]"
     }
   },
   "confusion_matrix": {
     "emergency": {
-      "emergency": 30,
-      "urgent": 4,
-      "routine": 2
+      "emergency": 35,
+      "urgent": 0,
+      "routine": 1
     },
     "urgent": {
-      "emergency": 0,
-      "urgent": 6,
-      "routine": 12
+      "emergency": 1,
+      "urgent": 17,
+      "routine": 0
     },
     "routine": {
       "emergency": 0,
-      "urgent": 1,
-      "routine": 35
+      "urgent": 0,
+      "routine": 36
     }
   },
   "mode": "rules",
   "split": "dev",
-  "latency_p50_ms": 0.11,
-  "latency_p95_ms": 1.24,
+  "latency_p50_ms": 0.17,
+  "latency_p95_ms": 2.66,
   "disagreement_rate_pct": 0.0,
   "category_breakdown": {
     "GI": {
       "count": 9,
-      "accuracy_pct": 66.67
+      "accuracy_pct": 88.89
     },
     "cardiac": {
       "count": 9,
-      "accuracy_pct": 55.56
+      "accuracy_pct": 88.89
     },
     "infection": {
       "count": 5,
@@ -115,19 +115,19 @@
     },
     "injury": {
       "count": 22,
-      "accuracy_pct": 72.73
+      "accuracy_pct": 100.0
     },
     "neuro": {
       "count": 6,
-      "accuracy_pct": 83.33
+      "accuracy_pct": 100.0
     },
     "other": {
       "count": 28,
-      "accuracy_pct": 85.71
+      "accuracy_pct": 100.0
     },
     "respiratory": {
       "count": 11,
-      "accuracy_pct": 90.91
+      "accuracy_pct": 100.0
     }
   }
 }

@@ -50,6 +50,10 @@ def _get_embedding_model():
     Returns 384-dimensional dense vector embeddings.
     """
     global _EMBEDDING_MODEL, _EMBEDDING_MODEL_LOADED
+    # Instant offline bypass during testing or offline rules mode
+    if os.getenv("PYTEST_CURRENT_TEST") or os.getenv("OFFLINE_MODE") or os.getenv("TRIAGE_MODE") == "rules":
+        return None
+
     if not _EMBEDDING_MODEL_LOADED:
         _EMBEDDING_MODEL_LOADED = True
         try:
