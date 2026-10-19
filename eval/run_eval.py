@@ -184,17 +184,59 @@ def save_confusion_matrix_plot(cm: Dict[str, Dict[str, int]], output_path: Path,
         logger.warning("Could not generate matplotlib confusion matrix plot: %s", exc)
 
 
+# ── Disk Response Cache ───────────────────────────────────────────────────────
+
+CACHE_FILE = RESULTS_DIR / "llm_cache.jsonl"
+_LLM_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def load_llm_cache() -> None:
+    global _LLM_CACHE
+    _LLM_CACHE = {}
+    if CACHE_FILE.exists():
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entry = json.loads(line)
+                        if "key" in entry:
+                            _LLM_CACHE[entry["key"]] = entry
+                    except Exception:
+                        pass
+
+
+def save_llm_cache_entry(key: str, data: Dict[str, Any]) -> None:
+    global _LLM_CACHE
+    _LLM_CACHE[key] = data
+    with open(CACHE_FILE, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"key": key, **data}) + "\n")
+
+
 # ── Prediction Engine ────────────────────────────────────────────────────────
 
-def evaluate_case(case: Dict[str, Any], mode: str) -> Tuple[str, float, bool]:
-    """Execute evaluation for a single case under the specified mode ('rules', 'llm', 'hybrid')."""
+def evaluate_case(case: Dict[str, Any], mode: str, no_cache: bool = False) -> Tuple[str, float, bool, bool]:
+    """Execute evaluation for a single case under the specified mode ('rules', 'llm', 'hybrid').
+
+    Returns:
+        (pred_label, latency_ms, disagreement, llm_failed)
+    """
     text = case.get("text", "")
     vitals = case.get("vitals", {})
     age = case.get("age", 35)
     sex = case.get("sex", "unknown")
     comorbidities = case.get("comorbidities", [])
 
+    model_name = os.getenv("LLM_MODEL") or os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    cache_raw = f"{mode}:{model_name}:{case.get('id', '')}:{text}:{json.dumps(vitals, sort_keys=True)}"
+    cache_key = hashlib.sha256(cache_raw.encode("utf-8")).hexdigest()
+
+    if mode in ("llm", "hybrid") and not no_cache and cache_key in _LLM_CACHE:
+        cached = _LLM_CACHE[cache_key]
+        return cached["pred_label"], cached["latency_ms"], cached.get("disagreement", False), cached.get("llm_failed", False)
+
     t0 = time.perf_counter()
+    llm_failed = False
 
     if mode == "rules":
         intake = run_intake(chief_complaint=text, age=age, sex=sex, known_conditions=comorbidities, use_llm=False)
@@ -210,18 +252,30 @@ def evaluate_case(case: Dict[str, Any], mode: str) -> Tuple[str, float, bool]:
         if llm_out is not None:
             pred_label = llm_out.level.value
         else:
-            # If LLM unavailable, must fallback
+            # If LLM unavailable or error, record failure and fallback to rule risk
+            llm_failed = True
             pred_label = rule_risk(text=text, intake=intake, vitals=vitals, age=age).level.value
         disagreement = False
 
     else:  # hybrid
         intake = run_intake(chief_complaint=text, age=age, sex=sex, known_conditions=comorbidities)
+        if not is_llm_available():
+            llm_failed = True
         risk = run_hybrid_risk(chief_complaint=text, intake=intake, vitals=vitals)
         pred_label = risk.level.value
         disagreement = risk.disagreement
 
     latency_ms = (time.perf_counter() - t0) * 1000.0
-    return pred_label, latency_ms, disagreement
+
+    if mode in ("llm", "hybrid") and not no_cache:
+        save_llm_cache_entry(cache_key, {
+            "pred_label": pred_label,
+            "latency_ms": round(latency_ms, 2),
+            "disagreement": disagreement,
+            "llm_failed": llm_failed,
+        })
+
+    return pred_label, latency_ms, disagreement, llm_failed
 
 
 def get_git_commit() -> str:
@@ -232,7 +286,7 @@ def get_git_commit() -> str:
         return "unknown"
 
 
-def run_evaluation(mode: str = "hybrid", split: str = "test") -> Dict[str, Any]:
+def run_evaluation(mode: str = "hybrid", split: str = "test", no_cache: bool = False) -> Dict[str, Any]:
     """Execute full evaluation on the dataset for the chosen mode and split."""
     data_path = (EVAL_DIR / "holdout_cases.jsonl") if split == "holdout" else DATA_FILE
     if not data_path.exists():
@@ -270,21 +324,25 @@ def run_evaluation(mode: str = "hybrid", split: str = "test") -> Dict[str, Any]:
     if mode in ["llm", "hybrid"] and not is_llm_available():
         logger.warning("GROQ_API_KEY is not set or unconfigured! LLM mode will fallback to rules.")
 
+    load_llm_cache()
     y_true: List[str] = []
     y_pred: List[str] = []
     latencies: List[float] = []
     disagreement_count = 0
+    llm_failed_count = 0
     predictions_record: List[Dict[str, Any]] = []
 
     for idx, case in enumerate(cases, start=1):
         true_label = case.get("label", "routine")
-        pred_label, lat_ms, disagreed = evaluate_case(case, mode=mode)
+        pred_label, lat_ms, disagreed, llm_failed = evaluate_case(case, mode=mode, no_cache=no_cache)
 
         y_true.append(true_label)
         y_pred.append(pred_label)
         latencies.append(lat_ms)
         if disagreed:
             disagreement_count += 1
+        if llm_failed:
+            llm_failed_count += 1
 
         rec = {
             "id": case.get("id"),
@@ -294,6 +352,7 @@ def run_evaluation(mode: str = "hybrid", split: str = "test") -> Dict[str, Any]:
             "concordant": (true_label == pred_label),
             "latency_ms": round(lat_ms, 2),
             "disagreement": disagreed,
+            "llm_failed": llm_failed,
         }
         predictions_record.append(rec)
 
@@ -311,6 +370,7 @@ def run_evaluation(mode: str = "hybrid", split: str = "test") -> Dict[str, Any]:
     metrics["latency_p50_ms"] = round(float(np.percentile(latencies, 50)), 2)
     metrics["latency_p95_ms"] = round(float(np.percentile(latencies, 95)), 2)
     metrics["disagreement_rate_pct"] = round((disagreement_count / len(cases)) * 100, 2) if cases else 0.0
+    metrics["llm_failed"] = llm_failed_count
 
     # Save plot
     plot_path = RESULTS_DIR / f"{mode}_{split}_confusion_matrix.png"
@@ -415,14 +475,15 @@ def main():
     parser = argparse.ArgumentParser(description="Clinical triage evaluation harness.")
     parser.add_argument("--mode", type=str, default="rules", choices=["rules", "hybrid", "llm", "all"], help="Execution mode")
     parser.add_argument("--split", type=str, default="test", choices=["dev", "test", "holdout", "all"], help="Dataset split")
+    parser.add_argument("--no-cache", action="store_true", help="Bypass and overwrite disk LLM response cache")
     args = parser.parse_args()
 
     if args.mode == "all":
         for m in ["rules", "hybrid", "llm"]:
-            run_evaluation(mode=m, split=args.split)
+            run_evaluation(mode=m, split=args.split, no_cache=args.no_cache)
         write_summary_report(split=args.split)
     else:
-        run_evaluation(mode=args.mode, split=args.split)
+        run_evaluation(mode=args.mode, split=args.split, no_cache=args.no_cache)
         write_summary_report(split=args.split)
 
 
