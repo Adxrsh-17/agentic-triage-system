@@ -79,3 +79,14 @@ include = ["agent*", "scripts*"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    ".hypothesis",
+    "archive",
+]
