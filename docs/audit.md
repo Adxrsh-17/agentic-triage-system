@@ -72,3 +72,60 @@ To satisfy `IMPROVEMENT_PLAN.md` while preserving 100% backwards compatibility w
 - `agent/graph.py`: StateGraph orchestration and compilation.
 
 `agent/multi_agent.py` will re-export all core interfaces (`MultiAgentSystem`, `get_multi_agent`, `assess_medical_risk`, `_check_esi_1_fast_path`, etc.) ensuring zero breaking changes across test suites, `app.py`, and `api.py`.
+
+---
+
+## 6. Verified Runtime Path (Fix 1 Verification)
+
+The execution call path from the user entry points (`app.py` and `api.py`) through the compiled LangGraph and into the modular node handlers has been audited and verified:
+
+```
+[Entry Point: app.py (Streamlit) OR api.py (FastAPI)]
+       │
+       ▼
+[agent.get_multi_agent() / get_agent() -> MultiAgentSystem]
+       │
+       ▼ MultiAgentSystem.process(user_input, vitals, ...)
+       │
+       ├─► [Optional Fast-Path Screen: _check_esi_1_fast_path] (Sub-50ms bypass for ESI 1)
+       │
+       ▼ [Compiled LangGraph StateGraph Execution]
+       │
+       ├──► 1. supervisor_node (Deterministic state evaluation)
+       │         │
+       │         ▼
+       ├──► 2. intake_node (agent/multi_agent.py)
+       │         │──► agent.nodes.intake.run_intake()
+       │         │        ├── (if TRIAGE_MODE != 'rules' & key): ChatGroq structured output
+       │         │        └── (offline fallback): regex_fallback_intake()
+       │         └──► agent.rules.check_red_flags()
+       │
+       ├──► 3. supervisor_node
+       │         │
+       │         ▼
+       ├──► 4. risk_node (agent/multi_agent.py)
+       │         │──► agent.nodes.risk.run_hybrid_risk()
+       │         │        ├── agent.rules.rule_risk() [Deterministic Inviolable Floor]
+       │         │        ├── (if TRIAGE_MODE != 'rules' & key): _llm_assess_risk()
+       │         │        └── max_severity(llm_level, rule_level) Consensus Arbitration
+       │
+       ├──► 5. supervisor_node
+       │         │
+       │         ▼
+       ├──► 6. safety_node (agent/multi_agent.py)
+       │         │──► finalize_response()
+       │         └──► agent.nodes.safety.validate_safety_output() [Regex Blacklist & Disclaimer]
+       │
+       ├──► 7. supervisor_node
+       │         │
+       │         ▼
+       ├──► 8. sbar_node (agent/multi_agent.py)
+       │         ├──► agent.sbar_generator.generate_sbar_note()
+       │         └──► agent.sbar_generator.generate_fhir_r4_bundle()
+       │
+       └──► 9. supervisor_node
+                 ├── [If High-Risk / ESI 1-2]: human_review_node (Pauses for Nurse Sign-off)
+                 └── [If Low-Risk / ESI 3-5]: finish_node (Completes and delivers payload)
+```
+
+Both live workstation flows and batch evaluation runners route through the identical canonical implementations in `agent/nodes/intake.py`, `agent/nodes/risk.py`, and `agent/nodes/safety.py`.

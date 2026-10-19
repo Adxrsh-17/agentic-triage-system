@@ -18,7 +18,13 @@ from agent.infermedica_client import (
     is_infermedica_configured,
     parse_symptoms as parse_symptoms_infermedica,
 )
+from agent.llm import is_llm_available
+from agent.nodes.intake import run_intake
+from agent.nodes.risk import run_hybrid_risk
+from agent.nodes.safety import MANDATORY_DISCLAIMER, generate_safe_response, validate_safety_output
+from agent.rules import check_red_flags
 from agent.sbar_generator import generate_fhir_r4_bundle, generate_sbar_note
+from agent.schemas import IntakeResult, RiskLevel, RiskResult
 
 
 try:
@@ -1479,6 +1485,7 @@ def intake_node(state: AgentState) -> AgentState:
     profile = retrieve_patient_memory(updated["user_id"], latest_input)
     age = profile.get("age", 25)
     sex = updated.get("patient_sex", "male") or "male"
+    conditions = profile.get("conditions", [])
 
     # Merge explicitly provided vitals with any vitals found in text
     vitals = dict(updated.get("vitals") or {})
@@ -1488,72 +1495,37 @@ def intake_node(state: AgentState) -> AgentState:
             vitals[k] = v
     updated["vitals"] = vitals
 
-    extracted = None
-    infermedica_evidence = None
+    # Determine mode: rules, llm, or hybrid
+    triage_mode = os.environ.get("TRIAGE_MODE", "hybrid").lower().strip()
+    use_llm = (triage_mode != "rules") and is_llm_available()
 
-    # 1. Primary: Try Infermedica Clinical Engine v3 /parse
-    if is_infermedica_configured():
-        infermedica_data = parse_symptoms_infermedica(latest_input, age=age, sex=sex)
-        if infermedica_data and (infermedica_data.get("symptoms") or infermedica_data.get("evidence")):
-            infermedica_evidence = infermedica_data.get("evidence", [])
-            aux = extract_symptoms(latest_input)
-            extracted = {
-                "symptoms": infermedica_data.get("symptoms", []),
-                "duration_days": aux.get("duration_days", 0),
-                "severity": aux.get("severity", "unspecified"),
-                "pertinent_negatives": infermedica_data.get("pertinent_negatives", []),
-                "red_flags": aux.get("red_flags", []),
-                "has_symptoms": bool(infermedica_data.get("symptoms")),
-                "has_duration": aux.get("duration_days", 0) > 0,
-                "extraction_method": "infermedica",
-            }
-
-    # 2. Secondary: Try Groq LLM tool-calling if Infermedica was not configured or produced no matches
-    if extracted is None:
-        extracted = extract_symptoms_llm(latest_input)
-
-    # 3. Tertiary: Deterministic regex fallback
-    if extracted is None:
-        extracted = extract_symptoms(latest_input)
+    # Call canonical run_intake from agent.nodes.intake
+    intake_res = run_intake(
+        chief_complaint=latest_input,
+        age=age,
+        sex=sex,
+        known_conditions=conditions,
+        use_llm=use_llm,
+    )
 
     followups: List[str] = []
-    if infermedica_evidence and is_infermedica_configured():
-        diag = get_diagnosis_infermedica(infermedica_evidence, age=age, sex=sex)
-        if diag and diag.get("question") and isinstance(diag["question"], dict):
-            q_text = diag["question"].get("text")
-            if q_text:
-                followups.append(q_text)
+    if not intake_res.symptoms or intake_res.severity_hint == "unspecified":
+        followups = generate_followup_questions(intake_res.symptoms).get("questions", [])
 
-    if not followups:
-        if not extracted["has_symptoms"] or not extracted["has_duration"] or extracted["severity"] == "unspecified":
-            llm_followups = generate_followup_questions_llm(
-                symptoms=extracted["symptoms"],
-                duration_days=extracted["duration_days"],
-                severity=extracted["severity"],
-                raw_text=latest_input,
-            )
-            if llm_followups:
-                followups = llm_followups
-            else:
-                followups = generate_followup_questions(extracted["symptoms"])["questions"]
+    # Red-flag rule extraction
+    extracted_flags = check_red_flags(latest_input, intake_res.symptoms, intake_res.pertinent_negatives)
 
-    updated["symptoms"] = extracted["symptoms"]
-    updated["duration_days"] = extracted["duration_days"]
-    updated["severity"] = extracted["severity"]
-    updated["pertinent_negatives"] = extracted.get("pertinent_negatives", [])
-    updated["red_flags"] = extracted.get("red_flags", [])
-    updated["infermedica_evidence"] = infermedica_evidence
-    updated["intake_method"] = extracted.get("extraction_method", "regex_fallback")
+    updated["symptoms"] = intake_res.symptoms
+    updated["duration_days"] = int(intake_res.duration_days)
+    updated["severity"] = intake_res.severity_hint
+    updated["pertinent_negatives"] = intake_res.pertinent_negatives
+    updated["red_flags"] = extracted_flags
+    updated["infermedica_evidence"] = None
+    updated["intake_method"] = intake_res.source
     updated["patient_profile"] = profile
     updated["followup_questions"] = followups
 
-    if updated["intake_method"] == "infermedica":
-        method_badge = "Infermedica Clinical Engine (v3/parse)"
-    elif updated["intake_method"] == "llm":
-        method_badge = "Groq LLM (llama-3.3-70b-versatile)"
-    else:
-        method_badge = "Deterministic Regex Fallback"
-
+    method_badge = "Groq Structured LLM" if intake_res.source == "llm" else "Deterministic Regex Fallback"
     negatives_text = (
         f"; negatives: {', '.join(updated['pertinent_negatives'])}" if updated["pertinent_negatives"] else ""
     )
@@ -1572,26 +1544,15 @@ def intake_node(state: AgentState) -> AgentState:
     vitals_text = f"; vitals: {', '.join(vitals_parts)}" if vitals_parts else ""
 
     updated["intake_summary"] = (
-        f"[{method_badge}] Identified symptoms: {', '.join(extracted['symptoms']) or 'none'}; "
-        f"duration: {extracted['duration_days']} day(s); severity: {extracted['severity']}"
+        f"[{method_badge}] Identified symptoms: {', '.join(intake_res.symptoms) or 'none'}; "
+        f"duration: {intake_res.duration_days} day(s); severity: {intake_res.severity_hint}"
         f"{negatives_text}{red_flags_text}{vitals_text}; memory source: {profile.get('memory_source', 'local')}"
     )
     updated.setdefault("completed_steps", []).append("intake")
 
-    tools_used = [
-        "parse_symptoms_infermedica"
-        if updated["intake_method"] == "infermedica"
-        else ("extract_symptoms_llm" if updated["intake_method"] == "llm" else "extract_symptoms_regex"),
-        "retrieve_patient_memory",
-    ]
+    tools_used = ["agent.nodes.intake.run_intake", "retrieve_patient_memory"]
     if vitals_parts:
         tools_used.append("extract_vitals_from_text")
-    if followups:
-        tools_used.append(
-            "get_diagnosis_infermedica"
-            if updated["intake_method"] == "infermedica"
-            else ("generate_followup_questions_llm" if updated["intake_method"] == "llm" else "generate_followup_questions")
-        )
 
     dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
     updated.setdefault("node_durations", {})["intake"] = dur_ms
@@ -1608,137 +1569,88 @@ def intake_node(state: AgentState) -> AgentState:
 def risk_node(state: AgentState) -> AgentState:
     t_start = time.perf_counter()
     updated = dict(state)
+    latest_input = _latest_user_message(updated.get("messages", []))
     profile = updated.get("patient_profile", {})
     age = profile.get("age", 25)
     sex = updated.get("patient_sex", "male") or "male"
-    evidence = updated.get("infermedica_evidence")
     vitals = updated.get("vitals", {})
 
-    # 1. Compute internal risk & ESI assessment with physiological vitals
-    internal_assessment = assess_medical_risk(
+    intake_obj = IntakeResult(
         symptoms=updated.get("symptoms", []),
-        duration=updated.get("duration_days", 0),
-        profile=profile,
-        severity=updated.get("severity", "unspecified"),
-        red_flags=updated.get("red_flags", []),
-        vitals=vitals,
-        chief_complaint=_latest_user_message(updated.get("messages", [])),
+        duration=f"{updated.get('duration_days', 0)} days",
+        duration_days=float(updated.get("duration_days", 0)),
+        severity_hint=updated.get("severity", "unspecified"),
+        age=age,
+        sex=sex,
+        conditions=profile.get("conditions", []),
         pertinent_negatives=updated.get("pertinent_negatives", []),
+        source=updated.get("intake_method", "regex"),
     )
-    vital_triggers = internal_assessment.get("vital_triggers", [])
+
+    mem_context = None
+    if profile.get("conditions"):
+        mem_context = f"Comorbidities: {', '.join(profile['conditions'])}"
+
+    triage_mode = os.environ.get("TRIAGE_MODE", "hybrid").lower().strip()
+
+    # Call canonical run_hybrid_risk from agent.nodes.risk
+    risk_res = run_hybrid_risk(
+        chief_complaint=latest_input,
+        intake=intake_obj,
+        vitals=vitals,
+        memory_context=mem_context,
+        mode=triage_mode,
+    )
+
+    vital_triggers = risk_res.vital_triggers
     updated["vital_triggers"] = vital_triggers
 
-    tools_called = ["assess_medical_risk", "check_emergency_red_flags"]
-    infermedica_triage_res = None
+    esi_level = risk_res.esi_level
+    risk_level_str = (
+        "HIGH"
+        if risk_res.level == RiskLevel.EMERGENCY
+        else ("MEDIUM" if risk_res.level == RiskLevel.URGENT else "LOW")
+    )
+    is_emergency = risk_res.level == RiskLevel.EMERGENCY or esi_level in (1, 2)
 
-    # 2. Query Infermedica Triage Engine if evidence is available
-    if evidence and is_infermedica_configured():
-        infermedica_triage_res = get_triage_infermedica(evidence=evidence, age=age, sex=sex)
-        if infermedica_triage_res:
-            tools_called.append("get_triage_infermedica")
-
-    # 3. Consensus arbitration ("Escalate, never downgrade")
-    if infermedica_triage_res:
-        inf_level = infermedica_triage_res.get("triage_level", "self_care")
-        inf_mapping = {
-            "emergency_ambulance": ("HIGH", 1),
-            "emergency": ("HIGH", 2),
-            "consultation_24": ("MEDIUM", 3),
-            "consultation": ("MEDIUM", 4),
-            "self_care": ("LOW", 5),
-        }
-        inf_risk, inf_esi = inf_mapping.get(inf_level, ("LOW", 5))
-
-        int_risk = internal_assessment.get("risk_level", "LOW")
-        int_esi = internal_assessment.get("esi_level", 5)
-
-        # Consensus risk: HIGH if either is HIGH; MEDIUM if either is MEDIUM; else LOW
-        if "HIGH" in (inf_risk, int_risk):
-            final_risk = "HIGH"
-        elif "MEDIUM" in (inf_risk, int_risk):
-            final_risk = "MEDIUM"
-        else:
-            final_risk = "LOW"
-
-        # Consensus ESI: Take highest acuity (lowest integer 1-5)
-        final_esi = min(int_esi, inf_esi)
-
-        # Merge concerns and rationale
-        concerns = list(internal_assessment.get("possible_concerns", []))
-        serious_list = infermedica_triage_res.get("serious", [])
-        for s in serious_list:
-            if isinstance(s, dict) and s.get("name") and s["name"] not in concerns:
-                concerns.append(f"{s['name']} (Infermedica)")
-
-        inf_desc = infermedica_triage_res.get("description", "")
-        rationale_parts = []
-        if internal_assessment.get("esi_rationale"):
-            rationale_parts.append(f"Internal Protocol: {internal_assessment['esi_rationale']}")
-        if inf_desc:
-            rationale_parts.append(f"Infermedica Engine: {inf_desc}")
-        final_rationale = " | ".join(rationale_parts) if rationale_parts else "Dual-engine validated"
-
-        reasons = list(
-            dict.fromkeys(
-                internal_assessment.get("risk_reasons", [])
-                + ([f"Infermedica Triage: {inf_level}"] if inf_level else [])
-            )
-        )
-
-        emergency = (
-            check_emergency_red_flags(updated.get("symptoms", []))
-            or bool(updated.get("red_flags"))
-            or internal_assessment.get("emergency_recommended", False)
-            or final_risk == "HIGH"
-            or final_esi in (1, 2)
-            or inf_level in ("emergency_ambulance", "emergency")
-        )
-
-        assessment = {
-            "risk_level": final_risk,
-            "esi_level": final_esi,
-            "esi_rationale": final_rationale,
-            "emergency_recommended": emergency,
-            "is_emergency": emergency,
-            "risk_reasons": reasons,
-            "possible_concerns": concerns,
-            "vital_triggers": vital_triggers,
-            "infermedica_triage": infermedica_triage_res,
-            "internal_assessment": internal_assessment,
-            "consensus_applied": True,
-        }
-    else:
-        emergency = (
-            check_emergency_red_flags(updated.get("symptoms", []))
-            or bool(updated.get("red_flags"))
-            or internal_assessment.get("emergency_recommended", False)
-        )
-        assessment = internal_assessment
-        assessment["is_emergency"] = emergency
-        assessment["vital_triggers"] = vital_triggers
-        assessment["infermedica_triage"] = None
-        assessment["consensus_applied"] = False
+    assessment = {
+        "risk_level": risk_level_str,
+        "esi_level": esi_level,
+        "esi_rationale": risk_res.rationale,
+        "emergency_recommended": is_emergency,
+        "is_emergency": is_emergency,
+        "risk_reasons": [risk_res.rationale] + vital_triggers,
+        "possible_concerns": [risk_res.rationale],
+        "vital_triggers": vital_triggers,
+        "red_flags": risk_res.red_flags,
+        "source": risk_res.source,
+        "disagreement": risk_res.disagreement,
+        "rule_level": risk_res.rule_level.value if risk_res.rule_level else None,
+        "llm_level": risk_res.llm_level.value if risk_res.llm_level else None,
+        "hitl_required": risk_res.hitl_required or is_emergency,
+        "consensus_applied": (risk_res.source == "hybrid"),
+        "predicted_resources": ["Multiple clinical resources"] if esi_level <= 3 else ["Single clinical resource"],
+        "resource_count": 2 if esi_level <= 3 else (1 if esi_level == 4 else 0),
+    }
 
     updated["medications"] = []
-    updated["infermedica_triage"] = infermedica_triage_res
+    updated["infermedica_triage"] = None
     updated["risk_assessment"] = assessment
-    updated["hitl_required"] = assessment["risk_level"] == "HIGH" or assessment.get("esi_level", 5) in (1, 2)
+    updated["hitl_required"] = assessment["hitl_required"]
     updated["awaiting_human_review"] = False
     updated.setdefault("completed_steps", []).append("risk")
 
-    summary_text = f"Risk assessed as {assessment['risk_level']} | ESI Level {assessment['esi_level']}"
-    if assessment.get("consensus_applied"):
-        summary_text += f" (Dual Consensus: Internal ESI {internal_assessment.get('esi_level')} + Infermedica {infermedica_triage_res.get('triage_level')})"
-    else:
-        summary_text += f" ({assessment.get('esi_rationale', '')})"
-
+    summary_text = (
+        f"Risk assessed as {assessment['risk_level']} | ESI Level {assessment['esi_level']} "
+        f"({assessment.get('esi_rationale', '')})"
+    )
     dur_ms = round((time.perf_counter() - t_start) * 1000.0, 2)
     updated.setdefault("node_durations", {})["risk"] = dur_ms
     _append_trace(
         updated,
         "risk",
         summary_text,
-        tools_called,
+        ["agent.nodes.risk.run_hybrid_risk", "rule_risk"],
         duration_ms=dur_ms,
     )
     return updated
@@ -1763,13 +1675,21 @@ def safety_node(state: AgentState) -> AgentState:
         infermedica_triage=updated.get("infermedica_triage"),
         vital_triggers=updated.get("vital_triggers", []),
     )
-    safety = perform_safety_check(response, assessment.get("is_emergency", False))
-    if not safety["safe_to_proceed"]:
-        response += "\n\nSafety note: This guidance was adjusted to stay informational and non-diagnostic."
+
+    # Validate output against canonical safety node
+    is_safe, violations = validate_safety_output(response)
+    if not is_safe:
+        response += f"\n\nSafety adjustment: {MANDATORY_DISCLAIMER}"
+        logger.warning("Safety validator flagged output: %s", violations)
 
     if updated.get("hitl_required"):
         response += "\n\nLicensed nurse sign-off is required before this high-risk triage recommendation is released."
 
+    safety = {
+        "is_safe": is_safe,
+        "safe_to_proceed": True,
+        "violations": violations,
+    }
     updated["final_response"] = response
     updated["safety_validation"] = safety
     updated.setdefault("completed_steps", []).append("safety")
@@ -1779,7 +1699,7 @@ def safety_node(state: AgentState) -> AgentState:
         updated,
         "safety",
         f"Final clinical guidance drafted with ESI Level {assessment.get('esi_level', 5)} and safety-checked",
-        ["finalize_response", "perform_safety_check"],
+        ["finalize_response", "agent.nodes.safety.validate_safety_output"],
         duration_ms=dur_ms,
     )
     return updated
@@ -2378,6 +2298,7 @@ class MultiAgentSystem:
             "symptoms": final_state.get("symptoms", []),
             "vitals": final_state.get("vitals", {}),
             "vital_triggers": final_state.get("vital_triggers", []),
+            "safety_validation": final_state.get("safety_validation", {}),
             "sbar_note": final_state.get("sbar_note", ""),
             "fhir_bundle": final_state.get("fhir_bundle", {}),
             "duration_days": final_state.get("duration_days", 0),

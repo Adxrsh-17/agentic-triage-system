@@ -146,6 +146,17 @@ def detect_red_flags(text: str, pertinent_negatives: Optional[List[str]] = None)
     return flags
 
 
+def check_red_flags(text: str, *args, **kwargs) -> List[str]:
+    """Compatibility wrapper around detect_red_flags."""
+    pertinent_negatives = kwargs.get("pertinent_negatives")
+    if pertinent_negatives is None:
+        if len(args) == 1:
+            pertinent_negatives = args[0]
+        elif len(args) >= 2:
+            pertinent_negatives = args[1]
+    return detect_red_flags(text, pertinent_negatives)
+
+
 # ── Physiological Vital Signs Danger Zones ───────────────────────────────────
 
 def check_vital_danger_zones(

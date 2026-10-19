@@ -7,6 +7,7 @@ The final clinical urgency may escalate above the rule floor based on LLM contex
 but must NEVER de-escalate below what the deterministic red-flag check establishes.
 """
 
+import os
 from typing import Any, Dict, List, Optional
 
 from agent.llm import call_structured_llm, is_llm_available
@@ -62,15 +63,22 @@ def run_hybrid_risk(
     intake: IntakeResult,
     vitals: Optional[Dict[str, Any]] = None,
     memory_context: Optional[str] = None,
+    mode: Optional[str] = None,
 ) -> RiskResult:
-    """Execute hybrid risk assessment with deterministic safety-floor enforcement.
+    """Execute risk assessment with deterministic safety-floor enforcement.
 
-    1. Always compute rule_result as the baseline safety floor.
-    2. Try LLM assessment when configured.
-    3. Final level = max_severity(llm_level, rule_level).
-    4. Log disagreement flag if LLM and rules diverge.
+    Modes:
+    - 'rules': Pure deterministic rules safety floor.
+    - 'llm': Pure LLM zero-shot evaluation without rule floor.
+    - 'hybrid': Consensus arbitration enforcing max_severity(llm_level, rule_level).
+    Default is controlled by TRIAGE_MODE env var (defaults to 'hybrid', degrading to 'rules').
     """
-    # 1. Deterministic safety floor (always executed)
+    if mode is None:
+        mode = os.environ.get("TRIAGE_MODE", "hybrid").lower().strip()
+    if mode not in ("rules", "llm", "hybrid"):
+        mode = "hybrid"
+
+    # 1. Deterministic safety floor (always computed)
     rule_result = rule_risk(
         text=chief_complaint,
         intake=intake,
@@ -78,12 +86,16 @@ def run_hybrid_risk(
         age=intake.age,
     )
 
-    # 2. LLM assessment (optional / best-effort)
-    llm_result = _llm_assess_risk(intake=intake, vitals=vitals, memory_context=memory_context)
-
-    if llm_result is None:
-        # Rules-only fallback mode
+    if mode == "rules" or not is_llm_available():
         return rule_result
+
+    # 2. LLM assessment
+    llm_result = _llm_assess_risk(intake=intake, vitals=vitals, memory_context=memory_context)
+    if llm_result is None:
+        return rule_result
+
+    if mode == "llm":
+        return llm_result
 
     # 3. Hybrid consensus: enforce safety invariant
     final_level = max_severity(llm_result.level, rule_result.level)
