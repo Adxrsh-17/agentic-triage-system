@@ -1,0 +1,83 @@
+{
+  "n_samples": 60,
+  "accuracy_pct": 66.67,
+  "macro_f1_pct": 61.31,
+  "emergency_recall_pct": 62.5,
+  "emergency_precision_pct": 100.0,
+  "urgent_recall_pct": 33.33,
+  "routine_recall_pct": 87.5,
+  "undertriage_rate_pct": 28.33,
+  "overtriage_rate_pct": 5.0,
+  "per_class": {
+    "emergency": {
+      "precision": 100.0,
+      "recall": 62.5,
+      "f1": 76.92,
+      "support": 24
+    },
+    "urgent": {
+      "precision": 33.33,
+      "recall": 33.33,
+      "f1": 33.33,
+      "support": 12
+    },
+    "routine": {
+      "precision": 63.64,
+      "recall": 87.5,
+      "f1": 73.68,
+      "support": 24
+    }
+  },
+  "confusion_matrix": {
+    "emergency": {
+      "emergency": 15,
+      "urgent": 5,
+      "routine": 4
+    },
+    "urgent": {
+      "emergency": 0,
+      "urgent": 4,
+      "routine": 8
+    },
+    "routine": {
+      "emergency": 0,
+      "urgent": 3,
+      "routine": 21
+    }
+  },
+  "mode": "rules",
+  "split": "test",
+  "latency_p50_ms": 0.19,
+  "latency_p95_ms": 2.57,
+  "disagreement_rate_pct": 0.0,
+  "category_breakdown": {
+    "GI": {
+      "count": 6,
+      "accuracy_pct": 33.33
+    },
+    "cardiac": {
+      "count": 4,
+      "accuracy_pct": 75.0
+    },
+    "infection": {
+      "count": 5,
+      "accuracy_pct": 80.0
+    },
+    "injury": {
+      "count": 10,
+      "accuracy_pct": 50.0
+    },
+    "neuro": {
+      "count": 3,
+      "accuracy_pct": 0.0
+    },
+    "other": {
+      "count": 23,
+      "accuracy_pct": 78.26
+    },
+    "respiratory": {
+      "count": 9,
+      "accuracy_pct": 88.89
+    }
+  }
+}

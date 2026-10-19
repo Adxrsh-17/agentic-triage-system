@@ -18,12 +18,12 @@ logger = logging.getLogger("triage-llm")
 
 T = TypeVar("T", bound=BaseModel)
 
-DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+DEFAULT_MODEL = os.environ.get("LLM_MODEL") or os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 def get_llm_model_name() -> str:
     """Return the active LLM model identifier."""
-    return os.environ.get("LLM_MODEL", DEFAULT_MODEL)
+    return os.environ.get("LLM_MODEL") or os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
 
 
 def is_llm_available() -> bool:

@@ -90,9 +90,10 @@ def run_intake(
     age: Optional[int] = None,
     sex: Optional[str] = None,
     known_conditions: Optional[List[str]] = None,
+    use_llm: bool = True,
 ) -> IntakeResult:
     """Execute hybrid intake extraction: LLM structured extraction with automatic regex fallback."""
-    if is_llm_available():
+    if use_llm and is_llm_available():
         system_prompt = (
             "You are a clinical intake assistant. Extract clinical entities from the patient's presentation into the "
             "provided schema. Identify symptoms, duration, severity descriptor, and explicitly denied symptoms (pertinent negatives)."
