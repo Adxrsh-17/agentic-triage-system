@@ -18,6 +18,19 @@
 
 ---
 
+## 60-Second Project in Brief
+
+- **What it is:** A Python-based clinical triage decision-support prototype implementing a multi-agent LangGraph pipeline with an inviolable deterministic safety floor.
+- **Why it matters:** Generative AI cannot be trusted unconditionally in high-stakes clinical triage. Our architecture guarantees that final triage acuity is mathematically bounded by emergency clinical rules ($\text{FinalRisk} \ge \text{RuleFloor}$).
+- **Core Capabilities:**
+  - Converts free-text intake into structured clinical entities with NegEx negation parsing.
+  - Evaluates physiological vital signs against age-stratified pediatric and adult ESI v4 criteria.
+  - Hybrid consensus engine reconciling generative LLM predictions with compiled red-flag rules.
+  - Generates standardized SBAR handoff notes and downloadable HL7 FHIR R4 clinical bundles.
+  - Runs **$100\%$ offline** with sub-millisecond execution ($0.13\text{ ms}$) without requiring API keys.
+
+---
+
 ## Table of Contents
 
 - [The Problem: Why Emergency Triage Needs Decision Support](#the-problem-why-emergency-triage-needs-decision-support)
@@ -141,6 +154,31 @@ To uphold strict machine learning hygiene, the dataset is partitioned into:
 ## Quickstart & Execution Modes
 
 The repository is built to run **$100\%$ offline with zero API keys required**, while seamlessly scaling to hybrid cloud inference when credentials are provided.
+
+### 0. Quick Demo (Python Interactive Walkthrough)
+
+Run immediate scenario evaluations offline with zero setup:
+
+```python
+from agent.rules import rule_risk
+
+# Scenario 1: High-Risk Hypoxic Tachypnea (Emergency ESI 2)
+res1 = rule_risk(
+    "73yo male with lymphoma, productive cough, fever 38.9C, chills and rigors",
+    vitals={"spo2": 93, "rr": 24, "temp": 38.9, "hr": 112}
+)
+print(res1.level.value)       # -> 'emergency'
+print(res1.esi_level)         # -> 2
+print(res1.vital_triggers)    # -> ['Hypoxic Tachypnea (SpO2 93%, RR 24/min)']
+
+# Scenario 2: Healed Laceration / Suture Removal (Routine ESI 5)
+res2 = rule_risk(
+    "28yo male presents for routine suture removal on forearm; laceration repaired 10 days ago, wound clean",
+    vitals={"spo2": 99, "hr": 68, "rr": 14}
+)
+print(res2.level.value)       # -> 'routine'
+print(res2.esi_level)         # -> 5
+```
 
 ### 1. Installation
 
