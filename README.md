@@ -26,14 +26,12 @@ Emergency department (ED) intake is a high-stakes, time-compressed clinical gate
 
 ![System Architecture](assets/system_architecture.png)
 
-The copilot operates as a deterministic **LangGraph StateGraph** organized into four decoupled clusters:
+The system is organized into modular clusters:
 
-| Architectural Cluster | Responsibilities & Component Stack |
-|:---|:---|
-| **1. Intake & Telemetry** | Streamlit clinician workstation (`app.py`) and FastAPI REST gateway (`api.py`) ingesting free-text chief complaints, age-stratified physiological vitals (HR, BP, SpO2, RR, Temp), and comorbidities. |
-| **2. NLP & Vector Memory** | Structured Pydantic concept extraction via ChatGroq (LLaMA-3.3-70B) with regex fallback, cross-encounter semantic retrieval using `all-MiniLM-L6-v2` (384-dim) via Pinecone or in-memory vector store. |
-| **3. Risk Consensus & Safety Floor** | Inviolable deterministic safety floor with windowed NegEx negation handling, pediatric age-adjusted bounds, and immediate fast-path bypass for resuscitation presentations (ESI 1). |
-| **4. Governance & Interoperability** | Mandatory clinician sign-off on emergent acuity (ESI 1–2), structured override justification auditing, ED physician SBAR note formulation, and compliant HL7 FHIR R4 Bundle generation. |
+- **Ingestion & Telemetry:** Streamlit triage workstation (`app.py`) and FastAPI REST gateway (`api.py`) capturing free-text narratives, age-stratified telemetry (HR, BP, SpO2, RR, Temp), and comorbidities.
+- **Clinical NLP & Intent:** Concept extraction via Groq LLaMA-3.3-70B with deterministic regex fallback and 384-dimensional dense semantic patient memory (`all-MiniLM-L6-v2` via Pinecone or in-memory vector store).
+- **Risk & Consensus Floor:** Deterministic physiological danger-zone guards and windowed NegEx red-flag engine enforcing the inviolable max-acuity safety invariant ($\text{Final Acuity} = \max(\text{Rules}, \text{LLM})$).
+- **Decision & Governance:** Mandatory clinician HITL sign-off on emergent acuity (ESI 1–2), structured override justification auditing, ED physician SBAR note formulation, and compliant HL7 FHIR R4 Bundle export.
 
 ### The Inviolable Safety Floor Invariant
 
