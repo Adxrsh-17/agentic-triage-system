@@ -29,7 +29,7 @@ class TestRiskHybrid(unittest.TestCase):
         )
 
         with patch("agent.nodes.risk._llm_assess_risk", return_value=mock_unsafe_llm):
-            result = run_hybrid_risk(chief_complaint=chief_complaint, intake=intake)
+            result = run_hybrid_risk(chief_complaint=chief_complaint, intake=intake, mode="hybrid")
 
             # Invariant: Safety floor enforces EMERGENCY
             self.assertEqual(result.level, RiskLevel.EMERGENCY)
@@ -61,7 +61,7 @@ class TestRiskHybrid(unittest.TestCase):
         )
 
         with patch("agent.nodes.risk._llm_assess_risk", return_value=mock_emergent_llm):
-            result = run_hybrid_risk(chief_complaint=chief_complaint, intake=intake)
+            result = run_hybrid_risk(chief_complaint=chief_complaint, intake=intake, mode="hybrid")
             self.assertEqual(result.level, RiskLevel.EMERGENCY)
             self.assertEqual(result.source, "hybrid")
 

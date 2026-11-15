@@ -1463,7 +1463,9 @@ def _latest_user_message(messages: List[Dict[str, str]]) -> str:
 def supervisor_node(state: AgentState) -> AgentState:
     completed = set(state.get("completed_steps", []))
     next_step = "intake"
-    if "intake" not in completed:
+    if state.get("approval_decision") and "human_review" not in completed:
+        next_step = "human_review"
+    elif "intake" not in completed:
         next_step = "intake"
     elif "risk" not in completed:
         next_step = "risk"
@@ -1809,8 +1811,8 @@ def human_review_node(state: AgentState) -> AgentState:
 
     assessment = dict(updated.get("risk_assessment", {}))
     suggested_esi = assessment.get("esi_level", 5)
-    is_override = decision in ["override", "overridden"] and override_esi is not None
-    final_esi = override_esi if is_override else suggested_esi
+    is_override = decision in ["override", "overridden"] or (override_esi is not None and override_esi != suggested_esi)
+    final_esi = override_esi if (override_esi is not None) else suggested_esi
     if is_override:
         assessment["esi_level"] = final_esi
         updated["risk_assessment"] = assessment
@@ -1826,7 +1828,7 @@ def human_review_node(state: AgentState) -> AgentState:
         ai_suggested_esi=suggested_esi,
         ai_rationale=assessment.get("esi_rationale", ""),
         ai_risk_level=assessment.get("risk_level", "LOW"),
-        nurse_decision="override" if (is_override and override_esi != suggested_esi) else "accept",
+        nurse_decision="override" if is_override else "accept",
         nurse_final_esi=final_esi,
         override_reason=override_reason,
         nurse_notes=nurse_notes,

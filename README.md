@@ -1,6 +1,6 @@
 # Agentic Triage Copilot: Hybrid Triage Assistant Prototype
 
-[![CI Pipeline](https://github.com/adarshpradeep/agentic-triage-system/actions/workflows/ci.yml/badge.svg)](https://github.com/adarshpradeep/agentic-triage-system/actions)
+[![CI Pipeline](https://github.com/Adxrsh-17/agentic-triage-system/actions/workflows/ci.yml/badge.svg)](https://github.com/Adxrsh-17/agentic-triage-system/actions)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg?logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
 [![Embeddings: 384d](https://img.shields.io/badge/Embeddings-all--MiniLM--L6--v2%20(384d)-7928ca.svg)](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)

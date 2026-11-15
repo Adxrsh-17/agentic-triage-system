@@ -86,7 +86,7 @@ def run_hybrid_risk(
         age=intake.age,
     )
 
-    if mode == "rules" or not is_llm_available():
+    if mode == "rules":
         return rule_result
 
     # 2. LLM assessment
