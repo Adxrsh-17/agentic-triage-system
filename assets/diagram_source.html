@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1440px;
+    height: 820px;
+    background: #090d16;
+    color: #f1f5f9;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 36px 44px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Subtle background grid */
+  body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12) 0%, transparent 60%),
+      linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 36px 36px, 36px 36px;
+    pointer-events: none;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 16px;
+    position: relative;
+    z-index: 10;
+  }
+  .title-group h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .title-group p {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .badge-bar {
+    display: flex;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+  }
+  .badge.cyan { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.3); color: #38bdf8; }
+  .badge.emerald { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3); color: #34d399; }
+  .badge.amber { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); color: #fbbf24; }
+
+  /* Grid Layout: 4 Columns */
+  .architecture-grid {
+    display: grid;
+    grid-template-columns: 290px 310px 370px 320px;
+    gap: 20px;
+    position: relative;
+    z-index: 10;
+    margin: 20px 0;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .col-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    padding-left: 4px;
+  }
+  .col-header .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .dot-blue { background: #38bdf8; box-shadow: 0 0 10px #38bdf8; }
+  .dot-purple { background: #a855f7; box-shadow: 0 0 10px #a855f7; }
+  .dot-rose { background: #f43f5e; box-shadow: 0 0 10px #f43f5e; }
+  .dot-emerald { background: #10b981; box-shadow: 0 0 10px #10b981; }
+
+  /* Cards */
+  .card {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(12px);
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .card.highlight-blue {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: linear-gradient(180deg, rgba(14, 116, 144, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%);
+  }
+  .card.highlight-purple {
+    border-color: rgba(168, 85, 247, 0.35);
+    background: linear-gradient(180deg, rgba(126, 34, 206, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%);
+  }
+  .card.highlight-rose {
+    border-color: rgba(244, 63, 94, 0.4);
+    background: linear-gradient(180deg, rgba(190, 18, 60, 0.18) 0%, rgba(15, 23, 42, 0.8) 100%);
+  }
+  .card.highlight-emerald {
+    border-color: rgba(16, 185, 129, 0.35);
+    background: linear-gradient(180deg, rgba(4, 120, 87, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%);
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .card-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .pill {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+  }
+  .pill.blue { background: rgba(56, 189, 248, 0.1); color: #7dd3fc; border-color: rgba(56, 189, 248, 0.2); }
+  .pill.purple { background: rgba(168, 85, 247, 0.1); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.2); }
+  .pill.rose { background: rgba(244, 63, 94, 0.1); color: #fda4af; border-color: rgba(244, 63, 94, 0.2); }
+  .pill.emerald { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.2); }
+
+  /* Invariant Box */
+  .formula-box {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px dashed rgba(244, 63, 94, 0.45);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #fecdd3;
+    line-height: 1.5;
+  }
+  .formula-box .highlight {
+    color: #38bdf8;
+    font-weight: 700;
+  }
+
+  /* Metric Card */
+  .metric-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .metric-stat {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .metric-stat .num {
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    color: #f8fafc;
+  }
+  .metric-stat .lbl {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 2px;
+    font-weight: 600;
+  }
+
+  /* Footer Flow bar */
+  .footer-flow {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+  }
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #cbd5e1;
+  }
+  .flow-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+  }
+  .flow-sep {
+    color: #475569;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="title-group">
+      <h1>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Agentic Triage Copilot: System Architecture
+      </h1>
+      <p>Hybrid Emergency Triage Decision Support | LangGraph Multi-Agent StateGraph & Deterministic Safety Floor</p>
+    </div>
+    <div class="badge-bar">
+      <span class="badge cyan">LangGraph 0.2</span>
+      <span class="badge emerald">ESI v4 Protocol</span>
+      <span class="badge amber">HL7 FHIR R4</span>
+      <span class="badge">99/99 Tests Passing</span>
+    </div>
+  </div>
+
+  <!-- Main Architecture Grid -->
+  <div class="architecture-grid">
+
+    <!-- Cluster 1: Ingestion -->
+    <div class="col">
+      <div class="col-header">
+        <span class="dot dot-blue"></span>
+        1. Intake & Telemetry
+      </div>
+
+      <div class="card highlight-blue">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/></svg>
+          Streamlit Workstation
+        </div>
+        <div class="card-sub">Interactive triage nurse workstation with real-time feedback and audit log view.</div>
+        <div class="tag-list">
+          <span class="pill blue">app.py</span>
+          <span class="pill blue">Web UI</span>
+          <span class="pill">Telemetry Intake</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+          FastAPI Microservice
+        </div>
+        <div class="card-sub">High-throughput REST API with pagination, health probes, and HITL endpoints.</div>
+        <div class="tag-list">
+          <span class="pill blue">api.py</span>
+          <span class="pill">POST /v1/triage</span>
+          <span class="pill">POST /v1/triage/review</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+          Clinical Telemetry
+        </div>
+        <div class="card-sub">Standardized physiological vitals & narrative symptoms parsed across age bands.</div>
+        <div class="tag-list">
+          <span class="pill">SpO2</span>
+          <span class="pill">HR</span>
+          <span class="pill">SBP/DBP</span>
+          <span class="pill">RR</span>
+          <span class="pill">Temp</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster 2: NLP & Memory -->
+    <div class="col">
+      <div class="col-header">
+        <span class="dot dot-purple"></span>
+        2. NLP & Vector Memory
+      </div>
+
+      <div class="card highlight-purple">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#a855f7" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          Concept Extraction Node
+        </div>
+        <div class="card-sub">Structured Pydantic symptom & duration extractor with resilient regex fallback.</div>
+        <div class="tag-list">
+          <span class="pill purple">intake.py</span>
+          <span class="pill purple">Groq LLaMA-3.3-70B</span>
+          <span class="pill">Regex Fallback</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#a855f7" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+          Dense Patient Memory
+        </div>
+        <div class="card-sub">Cross-encounter semantic context lookup via sentence-transformers (384-dim).</div>
+        <div class="tag-list">
+          <span class="pill purple">all-MiniLM-L6-v2</span>
+          <span class="pill">Pinecone</span>
+          <span class="pill">LocalMemory</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#a855f7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          Infermedica v3 Engine
+        </div>
+        <div class="card-sub">Optional medical concept ontology mapping and OTC medication guidance.</div>
+        <div class="tag-list">
+          <span class="pill purple">v3 REST API</span>
+          <span class="pill">Concept Mapping</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster 3: Risk & Consensus -->
+    <div class="col">
+      <div class="col-header">
+        <span class="dot dot-rose"></span>
+        3. Risk & Safety Floor
+      </div>
+
+      <div class="card highlight-rose">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Deterministic Safety Floor
+        </div>
+        <div class="card-sub">Windowed NegEx negation handling, pediatric age-adjusted bounds & red-flag rules.</div>
+        <div class="tag-list">
+          <span class="pill rose">rules.py</span>
+          <span class="pill rose">Windowed NegEx</span>
+          <span class="pill">Pediatric Bounds</span>
+          <span class="pill">Red Flags</span>
+        </div>
+
+        <div class="formula-box">
+          <div style="font-weight:700; color:#fb7185; margin-bottom:2px;">INVIOLABLE SAFETY INVARIANT</div>
+          FinalAcuity = <span class="highlight">max</span>(RulesFloor, LLM_Acuity)<br/>
+          <span style="color:#94a3b8; font-size:10px;">LLM can escalate, NEVER de-escalate.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Fast-Path Short Circuit
+        </div>
+        <div class="card-sub">Sub-millisecond triage bypass on immediate life threats (ESI 1 Resuscitation).</div>
+        <div class="tag-list">
+          <span class="pill rose">Sub-50ms Fast Path</span>
+          <span class="pill">Immediate Alert</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster 4: Governance & FHIR -->
+    <div class="col">
+      <div class="col-header">
+        <span class="dot dot-emerald"></span>
+        4. Governance & Interoperability
+      </div>
+
+      <div class="card highlight-emerald">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#10b981" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Clinician HITL Gate
+        </div>
+        <div class="card-sub">Mandatory licensed nurse sign-off for ESI 1–2; structured override justification.</div>
+        <div class="tag-list">
+          <span class="pill emerald">Human-in-the-Loop</span>
+          <span class="pill emerald">Sign-off / Override</span>
+          <span class="pill">Justification Log</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#10b981" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          HL7 FHIR R4 Bundle
+        </div>
+        <div class="card-sub">Valid transaction bundles with Patient, Observation, Condition, DocumentReference.</div>
+        <div class="tag-list">
+          <span class="pill emerald">FHIR R4</span>
+          <span class="pill">SBAR Physician Note</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" fill="none" stroke="#10b981" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          Audit Ledger & Analytics
+        </div>
+        <div class="card-sub">Append-only JSONL audit log measuring clinical concordance & override telemetry.</div>
+        <div class="tag-list">
+          <span class="pill emerald">Concordance Tracking</span>
+          <span class="pill">JSONL Ledger</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer Flow Bar -->
+  <div class="footer-flow">
+    <div class="flow-item">
+      <span class="flow-num">1</span>
+      <span>Arriving Patient Intake</span>
+    </div>
+    <span class="flow-sep">→</span>
+    <div class="flow-item">
+      <span class="flow-num">2</span>
+      <span>Deterministic Supervisor</span>
+    </div>
+    <span class="flow-sep">→</span>
+    <div class="flow-item">
+      <span class="flow-num">3</span>
+      <span>Hybrid NLP & Vector Memory</span>
+    </div>
+    <span class="flow-sep">→</span>
+    <div class="flow-item">
+      <span class="flow-num">4</span>
+      <span>Consensus Risk & Safety Floor</span>
+    </div>
+    <span class="flow-sep">→</span>
+    <div class="flow-item">
+      <span class="flow-num">5</span>
+      <span>Mandatory Clinician Sign-off</span>
+    </div>
+    <span class="flow-sep">→</span>
+    <div class="flow-item">
+      <span class="flow-num">6</span>
+      <span>SBAR & FHIR R4 Bundle</span>
+    </div>
+  </div>
+
+</body>
+</html>
