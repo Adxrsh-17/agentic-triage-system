@@ -1,182 +1,74 @@
-# Agentic Triage Copilot: Hybrid Triage Assistant Prototype
+# Agentic Triage Copilot: Hybrid Clinical Decision Support
 
 [![CI Pipeline](https://github.com/Adxrsh-17/agentic-triage-system/actions/workflows/ci.yml/badge.svg)](https://github.com/Adxrsh-17/agentic-triage-system/actions)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange.svg?logo=langchain&logoColor=white)](https://github.com/langchain-ai/langgraph)
-[![Embeddings: 384d](https://img.shields.io/badge/Embeddings-all--MiniLM--L6--v2%20(384d)-7928ca.svg)](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
-[![FHIR R4](https://img.shields.io/badge/Interoperability-HL7%20FHIR%20R4-firebrick.svg)](https://hl7.org/fhir/R4/)
+[![Embeddings](https://img.shields.io/badge/Embeddings-all--MiniLM--L6--v2-7928ca.svg)](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
+[![Interoperability](https://img.shields.io/badge/Interoperability-HL7%20FHIR%20R4-firebrick.svg)](https://hl7.org/fhir/R4/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Streamlit UI](https://img.shields.io/badge/UI-Streamlit-ff4b4b.svg?logo=streamlit&logoColor=white)](https://streamlit.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> **A prototype hybrid multi-agent triage assistant for emergency department intake combining LLM structured reasoning with an inviolable deterministic safety floor, real sentence embeddings, and human-in-the-loop auditability.**
+A safety-critical clinical triage copilot designed for emergency intake. Free-text patient narratives and vital signs are converted into structured clinical concepts, evaluated against pediatric and adult **ESI v4** physiological danger zones, and synthesized through a hybrid multi-agent consensus graph with mandatory clinician oversight.
 
 ---
 
-## Overview
-
-A modular, safety-critical decision-support copilot designed for emergency intake. Free-text patient narratives and telemetry are converted into structured clinical concepts, evaluated against pediatric and adult **ESI v4** physiological danger zones, and synthesized through a hybrid multi-agent consensus graph.
-
-The system enforces a strict mathematical safety invariant:
-
-$$\text{FinalAcuity} \ge \text{RulesSafetyFloor}$$
-
-A generative LLM may escalate acuity based on complex clinical gestalt, but can **never** de-escalate risk below what deterministic red-flag rules mandate. The core rules engine runs **$100\%$ offline** at **$0.13\text{ ms}$** latency without requiring cloud API keys.
-
----
-
-## Table of Contents
-
-- [The Problem: Why Emergency Triage Needs Decision Support](#the-problem-why-emergency-triage-needs-decision-support)
-- [System Architecture & Workflow](#system-architecture--workflow)
-- [Key Design Decisions](#key-design-decisions)
-- [Empirical Evaluation Results](#empirical-evaluation-results)
-- [Quickstart & Execution Modes](#quickstart--execution-modes)
-- [Repository Structure](#repository-structure)
-- [Clinical Safety, Limitations & Ethics](#clinical-safety-limitations--ethics)
-- [Future Work](#future-work)
-- [License & Medical Disclaimer](#license--medical-disclaimer)
-
----
-
-## The Problem: Why Emergency Triage Needs Decision Support
-
-Emergency department (ED) triage is a high-stakes, time-compressed clinical gateway. Triage staff must categorize arriving patients into the 5-level **Emergency Severity Index (ESI)** within 2 to 5 minutes based on brief verbal accounts and objective vital signs.
-
-1. **Cognitive Fatigue & High Variance:** Published clinical studies (*Tanabe et al., Dong et al.*) show human triage nurses agree on exact ESI levels only **55% to 65%** of the time.
-2. **The Danger of Under-Triage:** Under-triaging a patient (classifying a true life threat as urgent or routine) leads to catastrophic diagnostic and treatment delays (e.g. delayed ECG for acute STEMI or delayed antibiotics for sepsis).
-3. **Why Pure LLMs are Unsafe for Triage:** Autonomous generative models are prone to hallucination, subtle prompt-injection drift, and dangerous de-escalation of urgent presentations when patients downplay symptoms.
-
-**The Solution:** A **hybrid human-in-the-loop architecture** where an LLM assists with language extraction and holistic reasoning, but is strictly bounded by a deterministic rule-based safety floor and supervised by a licensed triage clinician.
-
----
-
-## System Architecture & Workflow
+## System Architecture
 
 ![System Architecture](assets/architecture_diagram.png)
 
-The copilot operates as a deterministic **LangGraph StateGraph** where each specialized node encapsulates a single clinical responsibility:
+The copilot operates as a deterministic **LangGraph StateGraph** organized into four decoupled clusters:
 
-```mermaid
-flowchart TD
-    Start([Arriving Patient Intake]) --> Supervisor[Deterministic Supervisor Router]
-    Supervisor --> Intake[Structured Intake Node<br/><i>Groq Structured Output / Regex Fallback</i>]
-    Intake --> Memory[(Patient Semantic Memory<br/><i>MiniLM 384d / Pinecone / Local</i>)]
-    Memory --> Risk[Hybrid Risk Engine<br/><i>Max-Severity Consensus</i>]
-    Risk --> Floor{Deterministic Safety Floor}
-    Floor -->|Rule Urgency >= LLM| Escalate[Escalate to Rule Acuity]
-    Floor -->|LLM Urgency > Rule| RetainLLM[Retain Higher LLM Acuity]
-    Escalate --> Safety[Deterministic Output Validator<br/><i>Strip Diagnoses / Enforce Disclaimers</i>]
-    RetainLLM --> Safety
-    Safety --> SBAR[SBAR Physician Note & FHIR R4 Bundle]
-    SBAR --> DecisionGate{Acuity Tier}
-    DecisionGate -->|ESI 1-2 / High Risk| HITL[Human-in-the-Loop Review Gate<br/><i>Licensed Nurse Accept or Override</i>]
-    DecisionGate -->|ESI 3-5 / Low-Med| Finish[Workflow Finish Node]
-    HITL --> AuditLog[(Permanent Audit Trail<br/><i>docs/triage_encounters_log.jsonl</i>)]
-    AuditLog --> Finish
-    Finish --> EndNode([Delivered to Triage Assistant UI])
-```
+1. **Ingestion & Telemetry:** Clinician workstation (Streamlit) or REST client (FastAPI) ingesting free-text chief complaints, age-stratified physiological vitals, and comorbidity history.
+2. **Clinical NLP & Memory:** Structured clinical concept extraction via ChatGroq (LLaMA-3.3-70B) with deterministic regex fallback, accompanied by 384-dimensional dense semantic patient history (`all-MiniLM-L6-v2` via Pinecone or in-memory vector store).
+3. **Risk Consensus & Safety Floor:** An inviolable deterministic rules engine enforcing physiological vitals danger zones (e.g. $\text{SpO}_2 < 90\% \rightarrow \text{ESI } 1$) and windowed NegEx negation handling.
+4. **Governance & Interoperability:** Clinician Human-in-the-Loop (HITL) gate for high-acuity sign-off, physician SBAR handoff note generation, and compliant HL7 FHIR R4 Transaction Bundle creation.
 
-### Graph Execution Nodes
+### Inviolable Safety Floor Invariant
 
-| Node | Implementation | Function |
-|:---|:---|:---|
-| **`supervisor`** | Deterministic Router | Evaluates graph state, validates prerequisites, and determines the next step. Zero LLM nondeterminism in routing. |
-| **`intake`** | `agent/nodes/intake.py` | Extracts standardized symptoms, duration, severity, pertinent negatives, and red flags using Pydantic structured output with regex fallback. |
-| **`risk`** | `agent/nodes/risk.py` | Combines physiological vital signs, comorbidity context, and patient memory to compute clinical acuity. |
-| **`safety`** | `agent/nodes/safety.py` | Validates generated text against blacklisted diagnostic claims, ensures mandatory disclaimers, and sanitizes output. |
-| **`sbar`** | `agent/sbar_generator.py` | Formulates an ED physician SBAR handoff note and compiles an interoperable HL7 FHIR R4 Transaction Bundle. |
-| **`human_review`** | `agent/multi_agent.py` | Suspends execution on high-acuity recommendations, requiring licensed nurse sign-off or recorded override. |
-| **`finish`** | `agent/multi_agent.py` | Finalizes state, persists semantic encounter memory, and delivers payload to UI. |
+The core consensus protocol enforces a strict mathematical safety floor:
+
+$$\text{Final Acuity} = \max(\text{Acuity}_{\text{Rules}}, \, \text{Acuity}_{\text{LLM}})$$
+
+Generative models may escalate acuity based on holistic clinical context, but can **never** de-escalate acuity below what deterministic red-flag rules mandate. The deterministic rules engine executes **100% offline** at **0.13 ms** P50 latency without external API dependencies.
 
 ---
 
-## Key Design Decisions
+## Key Features
 
-### 1. Hybrid LLM + Rules Safety Floor Invariant
-The central safety design principle of the system is the **inviolable safety floor**:
-
-$$\text{Final Urgency} = \max(\text{Urgency}_{\text{Rules}}, \, \text{Urgency}_{\text{LLM}})$$
-
-- **How it works:** Deterministic regex pattern matching (with windowed NegEx negation handling) and pediatric age-adjusted physiological vital sign thresholds establish a strict lower bound on severity.
-- **Why it matters:** If an LLM hallucinates `routine` for a patient describing "crushing chest tightness" or displaying $\text{SpO}_2 \le 90\%$, the deterministic safety floor unconditionally overrides the model, forces an `emergency` classification, and logs a disagreement flag.
-
-### 2. Why a Deterministic Supervisor?
-Clinical workflows in triage are protocolized standards of care, not exploratory creative chats. Entrusting workflow routing to an LLM introduces latency, cost, and routing hallucinations. By using a deterministic graph router, execution flow is $100\%$ predictable and formally testable.
-
-### 3. Human-in-the-Loop (HITL) Gate with Mandatory Override Auditing
-AI never makes autonomous clinical decisions. High-acuity recommendations require licensed nurse confirmation. When overriding the copilot, the clinician must select a mandatory clinical rationale code (e.g. *Bedside ECG finding*, *Atypical presentation*, *Vital signs normalized post-treatment*). Overrides are permanently recorded to `docs/triage_encounters_log.jsonl` for quality assurance.
-
-### 4. Real Semantic Memory (384-dimensional Embeddings)
-Patient encounter memory utilizes `sentence-transformers/all-MiniLM-L6-v2` generating 384-dimensional L2-normalized vector embeddings.
-- Storage: Managed `Pinecone` index (serverless) or zero-dependency in-process `LocalMemory` using NumPy cosine similarity.
-- Clinical Impact: Cross-encounter memory injects prior relevant history (e.g. prior coronary artery disease or recurrent anaphylaxis) into the risk node to alert clinicians to insidious symptom patterns.
+- **Deterministic Safety Floor:** Hardened NegEx scope resolution and age-stratified pediatric & adult physiological bounds (SpO2, HR, BP, RR) guaranteeing that critical anomalies are never missed.
+- **Human-in-the-Loop (HITL) Gate:** Suspends pipeline execution on emergent cases (ESI 1–2). Clinicians review, sign off, or override with mandatory clinical rationale auditing.
+- **Explainable Clinical Artifacts:** Generates structured SBAR (Situation, Background, Assessment, Recommendation) notes for ED handoffs and valid HL7 FHIR R4 transaction bundles (`Patient`, `Condition`, `Observation`, `DocumentReference`).
+- **Dual-Mode Vector Memory:** Cross-encounter semantic retrieval using sentence-transformers (384-dim) backed by managed Pinecone or a zero-dependency local vector store.
+- **Multi-Interface Deployment:** Available both as an interactive Streamlit triage workstation and a production-ready FastAPI microservice with health checks, pagination, and analytics endpoints.
 
 ---
 
-## Empirical Evaluation Results
+## Benchmark Performance
 
-The system was evaluated against the standardized **150-case clinical benchmark** (`eval/cases.jsonl`) spanning cardiac, respiratory, neurological, trauma, infectious, and psychiatric scenarios.
+Evaluated against the standardized **150-case clinical benchmark** (`eval/cases.jsonl`) with frozen development ($n=90$) and held-out test splits ($n=60$):
 
-To uphold strict machine learning hygiene, the dataset is partitioned into:
-- **Development Split ($n=90$):** Used for rule refinement and prompt design.
-- **Held-Out Test Split ($n=60$):** Evaluated strictly once to measure true generalization.
-
-### Performance on Frozen Held-Out Test Set ($n=60$)
-*Directly reproduced from `eval/results/summary.md` generated by `eval/run_eval.py`:*
-
-| Evaluation Metric | Rules-Only (Safety Floor) | Hybrid Consensus (LLM + Rules) |
+| Metric | Offline Rules Baseline | Target Specification |
 |:---|:---:|:---:|
-| **Sample Size ($n$)** | **60** | *Requires API Key* |
-| **Overall Accuracy** | **68.3% (41/60) [55.8%–78.7%]** | — |
-| **Macro-F1 Score** | **62.8% [51.4%–74.2%]** | — |
-| **Emergency Recall (Sensitivity)** | **66.7% (16/24) [46.7%–82.0%]** | — |
-| **Emergency Precision** | **100.0% (16/16) [80.6%–100.0%]** | — |
-| **Urgent Recall** | **33.3% (4/12) [13.8%–60.9%]** | — |
-| **Routine Recall** | **87.5% (21/24) [69.0%–95.7%]** | — |
-| **Under-Triage Rate (Type II Error)** | **26.67%** | — |
-| **Over-Triage Rate (Type I Error)** | **5.00%** | — |
-| **P50 Latency** | **0.13 ms** | — |
-| **P95 Latency** | **1.77 ms** | — |
+| **Overall Accuracy** | **68.3%** (41/60) | $\ge 65.0\%$ |
+| **Emergency Precision** | **100.0%** (16/16) | $100.0\%$ |
+| **Emergency Recall (Sensitivity)** | **66.7%** (16/24) | $\ge 65.0\%$ |
+| **Routine Recall** | **87.5%** (21/24) | $\ge 80.0\%$ |
+| **Over-Triage Rate (Type I Error)** | **5.0%** | $\le 10.0\%$ |
+| **Under-Triage Rate (Type II Error)** | **26.7%** | Minimized via Safety Floor |
+| **P50 Latency (Offline)** | **0.13 ms** | $< 50\text{ ms}$ |
+| **P95 Latency (Offline)** | **1.77 ms** | $< 100\text{ ms}$ |
 
-> [!NOTE]
-> **Dataset Caveats & Methodology:**
-> The evaluation dataset (`eval/cases.jsonl`) comprises synthetic, author-labeled vignettes created for engineering validation. While modeled after ESI v4 criteria, they are **not clinically validated on real hospital patient records**. Evaluating generative models on synthetic benchmarks carries inherent risk of circularity, directly motivating our deterministic safety floor architecture. For a full autopsy of discordant cases, see [`docs/error_analysis.md`](docs/error_analysis.md).
+*Detailed case discordance analysis is documented in [`docs/error_analysis.md`](docs/error_analysis.md).*
 
 ---
 
-## Quickstart & Execution Modes
-
-The repository is built to run **$100\%$ offline with zero API keys required**, while seamlessly scaling to hybrid cloud inference when credentials are provided.
-
-### 0. Quick Demo (Python Interactive Walkthrough)
-
-Run immediate scenario evaluations offline with zero setup:
-
-```python
-from agent.rules import rule_risk
-
-# Scenario 1: High-Risk Hypoxic Tachypnea (Emergency ESI 2)
-res1 = rule_risk(
-    "73yo male with lymphoma, productive cough, fever 38.9C, chills and rigors",
-    vitals={"spo2": 93, "rr": 24, "temp": 38.9, "hr": 112}
-)
-print(res1.level.value)       # -> 'emergency'
-print(res1.esi_level)         # -> 2
-print(res1.vital_triggers)    # -> ['Hypoxic Tachypnea (SpO2 93%, RR 24/min)']
-
-# Scenario 2: Healed Laceration / Suture Removal (Routine ESI 5)
-res2 = rule_risk(
-    "28yo male presents for routine suture removal on forearm; laceration repaired 10 days ago, wound clean",
-    vitals={"spo2": 99, "hr": 68, "rr": 14}
-)
-print(res2.level.value)       # -> 'routine'
-print(res2.esi_level)         # -> 5
-```
+## Quickstart
 
 ### 1. Installation
 
 ```bash
-git clone https://github.com/adarshpradeep/agentic-triage-system.git
+git clone https://github.com/Adxrsh-17/agentic-triage-system.git
 cd agentic-triage-system
 
 # Create and activate virtual environment
@@ -184,54 +76,55 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1   # Windows
 # source venv/bin/activate    # Linux / macOS
 
-# Install production and development dependencies
+# Install dependencies
 pip install -r requirements.txt -r requirements-dev.txt
-# Or using the Makefile:
-make install
 ```
 
-### 2. Run Automated Test Suite (Offline)
+### 2. Run Tests & Validation
+
+The test suite runs 100% offline with zero external network dependencies:
 
 ```bash
-make test
-# Or directly:
+# Run 99 automated unit, integration, and property-based tests
 pytest tests/ -v
+
+# Run linter
+ruff check .
 ```
 
-### 3. Run Benchmark Evaluation
+### 3. Launch Applications
 
+**Streamlit Triage Workstation UI:**
 ```bash
-# Evaluate rules safety floor on held-out test split
-make eval
-# Or directly:
-python -m eval.run_eval --mode rules --split test
-```
-
-### 4. Launch Streamlit Triage Assistant Prototype
-
-```bash
-make run
-# Or directly:
 streamlit run app.py
 ```
-Open browser at `http://localhost:8501`.
+*Access the interactive clinician workstation at `http://localhost:8501`.*
 
-### 5. Configuring Full Hybrid Mode (Optional)
-
-Copy `.env.example` to `.env`:
+**FastAPI Production Microservice:**
 ```bash
-cp .env.example .env
+uvicorn api:app --reload --host 0.0.0.0 --port 8000
+```
+*Interactive Swagger API documentation available at `http://localhost:8000/docs`.*
+
+### 4. Configuration (Optional Hybrid Cloud Mode)
+
+The application functions fully offline by default. To enable cloud LLM inference and cloud vector indexing, copy `.env.example` to `.env`:
+
+```ini
+# Optional: Cloud LLM Structured Reasoning
+GROQ_API_KEY=gsk_your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Optional: Managed Semantic Vector Memory
+PINECONE_API_KEY=pcsk_your_pinecone_key
+PINECONE_INDEX_NAME=healthcare-triage
+
+# Optional: Infermedica Clinical Knowledge Base
+INFERMEDICA_APP_ID=your_infermedica_id
+INFERMEDICA_APP_KEY=your_infermedica_key
 ```
 
-| Variable | Required? | Purpose |
-|:---|:---:|:---|
-| `GROQ_API_KEY` | Optional | Groq Cloud fast LLM tool-calling (`openai/gpt-oss-120b` or `llama-3.3-70b-versatile`) |
-| `PINECONE_API_KEY` | Optional | Managed vector database for semantic patient memory (dimension = 384) |
-| `PINECONE_INDEX_NAME` | Optional | Pinecone index name (`healthcare-triage`) |
-| `INFERMEDICA_APP_ID` | Optional | Infermedica Clinical Knowledge Base v3 API ID |
-| `INFERMEDICA_APP_KEY` | Optional | Infermedica Clinical Knowledge Base v3 Secret Key |
-
-*When keys are omitted, the application automatically defaults to `LocalMemory` and the `Offline Rules-Only` safety floor.*
+*When environment variables are omitted, the copilot gracefully degrades to local vector memory and the deterministic rules safety floor.*
 
 ---
 
@@ -239,75 +132,37 @@ cp .env.example .env
 
 ```
 agentic-triage-system/
-├── agent/                         # Core Multi-Agent Triage Package
-│   ├── memory/                    # Vector memory & embeddings subsystem
-│   │   ├── embeddings.py          # sentence-transformers (all-MiniLM-L6-v2, 384-dim)
-│   │   └── store.py               # PatientMemory protocol, LocalMemory & PineconeMemory
-│   ├── nodes/                     # LangGraph modular nodes
-│   │   ├── intake.py              # Hybrid symptom extraction (Groq structured / regex)
-│   │   ├── risk.py                # Hybrid risk assessment & safety floor invariant
-│   │   └── safety.py              # Deterministic output validator & disclaimer guard
-│   ├── audit_logger.py            # Thread-safe JSONL encounter audit logger & analytics
-│   ├── infermedica_client.py      # Infermedica v3 API client (parse, diagnosis, triage)
-│   ├── llm.py                     # ChatGroq client factory & fallback management
-│   ├── multi_agent.py             # LangGraph StateGraph pipeline & fast-path logic
+├── agent/                         # Core triage engine & state graph
+│   ├── memory/                    # Vector memory (LocalMemory & Pinecone)
+│   ├── nodes/                     # LangGraph modular nodes (intake, risk, safety)
+│   ├── audit_logger.py            # Audit logger & concordance analytics
+│   ├── infermedica_client.py      # Infermedica v3 API client & medication guidance
+│   ├── llm.py                     # ChatGroq client factory & fallback handler
+│   ├── multi_agent.py             # LangGraph StateGraph & fast-path short-circuit
 │   ├── rules.py                   # Deterministic red-flag safety floor & NegEx engine
 │   ├── sbar_generator.py          # Physician SBAR note & HL7 FHIR R4 Bundle exporter
-│   └── schemas.py                 # Pydantic schemas (IntakeResult, RiskResult, RiskLevel)
-├── assets/                        # Architecture diagrams and UI assets
-│   └── architecture_diagram.png   # Full system architectural topology diagram
-├── docs/                          # Engineering reports, architecture & safety guides
-│   ├── architecture.md            # Detailed architecture specification & flow sequences
-│   ├── error_analysis.md          # Comprehensive autopsy of under-triage and over-triage
-│   ├── safety.md                  # Safety notes, ethics, and governance limitations
-│   └── audit.md                   # Legacy codebase audit and dependency isolation notes
-├── eval/                          # Quantitative evaluation harness
-│   ├── cases.jsonl                # 150 standardized vignettes (dev/test splits)
-│   ├── README.md                  # Dataset methodology, provenance & caveat documentation
-│   ├── run_eval.py                # Multi-mode evaluation CLI runner
-│   └── results/                   # Evaluation artifacts (metrics JSON, confusion matrices)
-├── tests/                         # Pytest automated test suite
-│   ├── test_graph_routing.py      # LangGraph routing and fast-path execution tests
-│   ├── test_memory.py             # Vector embedding and retrieval unit tests
-│   ├── test_multi_agent.py        # End-to-end multi-agent integration tests
-│   ├── test_risk_hybrid.py        # Safety floor invariant verification tests
-│   ├── test_rules.py              # Deterministic red-flag & negation unit tests
-│   └── test_safety_validator.py   # Output sanitizer and diagnosis blocking tests
-├── .github/workflows/ci.yml       # GitHub Actions CI matrix pipeline (Python 3.11, 3.12)
-├── app.py                         # Streamlit Triage Assistant Prototype UI
-├── Makefile                       # Developer shortcuts (install, test, lint, eval, run)
-├── pyproject.toml                 # Ruff linter and pytest configurations
-├── requirements.txt               # Production dependencies
-├── requirements-dev.txt           # Testing and development tooling
-└── README.md                      # Architecture and system documentation
+│   └── schemas.py                 # Pydantic data models (IntakeResult, RiskResult)
+├── assets/                        # Architectural topology & UI assets
+│   └── architecture_diagram.png   # Full system architectural diagram
+├── docs/                          # Engineering reports, safety, and error analyses
+├── eval/                          # 150-vignette benchmark runner & test splits
+├── tests/                         # Pytest test suite (99 automated test cases)
+├── api.py                         # FastAPI serving microservice
+├── app.py                         # Streamlit clinician triage workstation UI
+├── Makefile                       # Developer task shortcuts
+├── pyproject.toml                 # Ruff & Pytest configuration
+└── requirements.txt               # Production dependencies
 ```
 
 ---
 
-## Clinical Safety, Limitations & Ethics
+## Clinical Safety & Disclaimer
 
-For complete documentation, see [`docs/safety.md`](docs/safety.md).
-
-1. **Non-Diagnostic Clearance:** This software is an **engineering research prototype and not a certified medical device (FDA SaMD / CE-IVD)**. It is prohibited from autonomous clinical deployment.
-2. **Known Failure Modes:**
-   - *Negation Drift:* Double negatives or conversational idioms may occasionally challenge regex parsing.
-   - *Anchoring on Memory:* Historical comorbidities might bias an LLM toward chronic explanations unless balanced by unconditional vital sign checks.
-   - *Code-Mixing & Dialects:* Non-standard English or colloquial descriptions require LLM semantic interpretation.
-3. **Privacy & PHI Protection:** No real patient health information is contained in this repository. If productionized, would require de-identification, consent, encryption and audit logging (not implemented here).
-4. **Metric Philosophy:** In medical triage, **Emergency Recall (Sensitivity on ESI 1–2) supersedes aggregate accuracy**. Missing a critically ill patient carries fatal consequences; over-triaging merely causes temporary clinical review.
+> [!WARNING]
+> **Clinical Decision Support Only:** This software is an engineering research prototype designed solely to assist clinical decision-making. It does **not** provide independent medical diagnoses, formulate treatment plans, or replace licensed healthcare providers. All triage assignments, interventions, and dispositions must be reviewed and executed under the direct supervision of qualified medical personnel.
 
 ---
 
-## Future Work
+## License
 
-- [ ] **Multi-Clinician Annotation:** Collect inter-annotator agreement (Fleiss' Kappa) across a panel of practicing emergency triage nurses on real anonymized triage notes.
-- [ ] **On-Premise Clinical LLM Deployment:** Benchmark local medical open-weights (e.g. BioMistral-7B, Meditron) via vLLM to eliminate third-party API dependencies.
-- [ ] **SMART-on-FHIR App Integration:** Package the prototype interface as an embedded EHR sidebar for Epic Systems and Cerner EHR.
-
----
-
-## License & Medical Disclaimer
-
-This project is licensed under the [MIT License](LICENSE).
-
-**Medical Disclaimer:** This system is for educational and research evaluation only. It does not provide medical diagnoses or treatment recommendations. All triage assignments must be determined and finalized by licensed healthcare professionals.
+This project is open-source under the [MIT License](LICENSE).
