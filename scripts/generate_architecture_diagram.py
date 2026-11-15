@@ -185,6 +185,8 @@ def build_dot(analysis: ProjectAnalysis) -> str:
 
     user = node_id("actor", "user")
     streamlit = node_id("component", "streamlit_ui")
+    backend_router = node_id("component", "backend_router")
+    groq_agent = node_id("component", "groq_agent")
     infermedica_engine = node_id("component", "infermedica_engine")
     local_graph = node_id("component", "local_graph")
     groq_api = node_id("service", "groq_api")

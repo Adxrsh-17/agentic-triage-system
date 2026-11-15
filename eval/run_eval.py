@@ -10,6 +10,7 @@ Generates:
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -29,6 +30,7 @@ from agent.schemas import (
     RiskResult,
     severity_order,
 )
+from scripts.eval_utils import compute_bootstrap_ci, wilson_score_interval
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("eval-runner")
@@ -37,9 +39,6 @@ EVAL_DIR = Path(__file__).resolve().parent
 DATA_FILE = EVAL_DIR / "cases.jsonl"
 RESULTS_DIR = EVAL_DIR / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
-
-
-from scripts.eval_utils import compute_bootstrap_ci, wilson_score_interval
 
 
 def bootstrap_macro_f1_ci(

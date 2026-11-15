@@ -30,8 +30,7 @@ jobs:
 
     - name: Lint with Ruff
       run: |
-        ruff check . --select E9,F63,F7,F82 --show-source
-        ruff check agent/ tests/ eval/ --ignore E501
+        ruff check .
 
     - name: Run Gitleaks Secret Scanner
       uses: gitleaks/gitleaks-action@v2

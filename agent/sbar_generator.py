@@ -33,7 +33,7 @@ def generate_sbar_note(
 ) -> str:
     """
     Generate an emergency department SBAR clinical handoff note.
-    
+
     Format:
     - S (Situation): Demographics, arrival acuity, chief complaint
     - B (Background): Chronic comorbidities, relevant risk profile
@@ -188,7 +188,7 @@ def generate_fhir_r4_bundle(
 ) -> Dict[str, Any]:
     """
     Construct a valid HL7 FHIR R4 Transaction Bundle representing the triage intake encounter.
-    
+
     Includes:
     - Patient resource
     - Encounter resource (class: EMER)
