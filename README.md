@@ -24,7 +24,7 @@ Emergency department (ED) intake is a high-stakes, time-compressed clinical gate
 
 ## System Architecture
 
-![System Architecture](assets/architecture_diagram.png)
+![System Architecture](assets/system_architecture.png)
 
 The copilot operates as a deterministic **LangGraph StateGraph** organized into four decoupled clusters:
 
@@ -42,6 +42,15 @@ The central design principle of the system is the mathematical safety invariant:
 $$\text{Final Acuity} = \max(\text{Acuity}_{\text{Rules}}, \, \text{Acuity}_{\text{LLM}})$$
 
 A generative model may escalate acuity based on holistic clinical gestalt, but can **never** de-escalate acuity below what deterministic red-flag rules establish. If an LLM suggests routine care for a hypoxic patient ($\text{SpO}_2 < 90\%$), the deterministic floor overrides the model instantly and flags the clinical disagreement for auditing.
+
+---
+
+## Clinician Workstation & Interoperability UI
+
+| Emergency Triage Workstation & Telemetry Intake | Physician SBAR Note & HL7 FHIR R4 Bundle |
+|:---:|:---:|
+| ![Nurse Triage Workstation](assets/ui_intake_workstation.png) | ![SBAR & HL7 FHIR R4 Bundle](assets/ui_sbar_fhir_bundle.png) |
+| *Real-time telemetry intake, physiological vitals danger zone alerts, and ESI Level 2 Emergent consensus.* | *Validated ED physician SBAR clinical handoff note and compliant HL7 FHIR R4 transaction bundle export.* |
 
 ---
 
